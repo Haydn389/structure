@@ -3,475 +3,524 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RC 기둥 PM 상관도 분석기</title>
+    <title>철근 콘크리트 기둥 PM 상관도 분석기</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* 기본 폰트 설정 */
         body {
             font-family: 'Noto Sans KR', sans-serif;
         }
-        /* 캔버스 반응형 처리 */
-        canvas {
-            width: 100%;
-            height: auto;
+        /* 스크롤바 스타일링 (다크모드) */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        #pmDiagramCanvas {
-             aspect-ratio: 1 / 1;
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
         }
-        #sectionCanvas {
-            aspect-ratio: 1 / 1.2;
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .input-group input {
+            flex-grow: 1;
+        }
+        .input-group span {
+            white-space: nowrap;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-900 text-gray-200">
 
-    <div class="container mx-auto max-w-7xl">
+    <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">철근 콘크리트 기둥 PM 상관도 분석기</h1>
-            <p class="text-gray-400 mt-2">ACI 318 / KCI 기준에 따른 P-M 상관도(Interaction Diagram)를 생성합니다.</p>
+            <p class="text-gray-400 mt-2">KCI 기준에 따른 공칭강도 및 설계강도 곡선을 생성합니다.</p>
         </header>
 
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- 좌측 패널: 입력 폼 및 단면 미리보기 -->
-            <section class="lg:col-span-1 space-y-8">
-                <!-- 입력 폼 섹션 -->
-                <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl">
-                    <h2 class="text-2xl font-semibold mb-6 border-b border-gray-600 pb-3">입력 변수</h2>
-                    <form id="pm-form" class="space-y-4">
-                        <div>
-                            <label for="fck" class="block text-sm font-medium text-gray-300">콘크리트 설계기준압축강도 (fck)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="fck" value="24" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">MPa</span>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- 입력 폼 및 단면 시각화 -->
+            <div class="lg:col-span-1 bg-gray-800 p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 border-b-2 border-indigo-500 pb-2">입력 변수</h2>
+                
+                <form id="pm-form" class="space-y-4">
+                    <!-- 재료 강도 -->
+                    <div>
+                        <h3 class="text-lg font-medium text-indigo-400 mb-2">재료 강도</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="fck" class="block text-sm font-medium text-gray-300 mb-1">fck (MPa)</label>
+                                <input type="number" id="fck" value="24" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="fy" class="block text-sm font-medium text-gray-300 mb-1">fy (MPa)</label>
+                                <input type="number" id="fy" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
                         </div>
-                        <div>
-                            <label for="fy" class="block text-sm font-medium text-gray-300">철근 항복강도 (fy)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="fy" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">MPa</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="b" class="block text-sm font-medium text-gray-300">기둥 단면 폭 (b)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="b" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="h" class="block text-sm font-medium text-gray-300">기둥 단면 깊이 (h)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="h" value="600" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="d" class="block text-sm font-medium text-gray-300">인장철근 유효깊이 (d)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="d" value="540" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="d_prime" class="block text-sm font-medium text-gray-300">압축철근 유효깊이 (d')</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="d_prime" value="60" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="As" class="block text-sm font-medium text-gray-300">인장철근 단면적 (As)</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="As" value="2533.5" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm²</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="As_prime" class="block text-sm font-medium text-gray-300">압축철근 단면적 (As')</label>
-                            <div class="flex items-center mt-1">
-                                <input type="number" id="As_prime" value="2533.5" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                                <span class="ml-3 text-gray-400">mm²</span>
-                            </div>
-                        </div>
+                    </div>
 
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 mt-6">
-                            PM 상관도 그리기
-                        </button>
-                        <div id="error-message" class="text-red-400 text-sm mt-4 h-5"></div>
-                    </form>
-                </div>
-                <!-- 단면 미리보기 섹션 -->
-                <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl">
-                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">단면 미리보기</h3>
-                    <canvas id="sectionCanvas"></canvas>
-                </div>
-            </section>
+                    <!-- 단면 정보 -->
+                    <div>
+                        <h3 class="text-lg font-medium text-indigo-400 mt-4 mb-2">단면 정보</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="b" class="block text-sm font-medium text-gray-300 mb-1">폭 b (mm)</label>
+                                <input type="number" id="b" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="h" class="block text-sm font-medium text-gray-300 mb-1">깊이 h (mm)</label>
+                                <input type="number" id="h" value="600" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="d_prime" class="block text-sm font-medium text-gray-300 mb-1">d' (mm)</label>
+                                <input type="number" id="d_prime" value="60" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- PM 상관도 캔버스 섹션 -->
-            <section class="lg:col-span-2 bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center">
-                <canvas id="pmDiagramCanvas"></canvas>
-            </section>
-        </main>
+                    <!-- 철근 정보 -->
+                    <div>
+                        <h3 class="text-lg font-medium text-indigo-400 mt-4 mb-2">철근 정보</h3>
+                        <!-- 압축측 철근 -->
+                        <div class="bg-gray-700 p-3 rounded-lg mb-3">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">압축측 철근 (A's)</label>
+                            <div class="input-group">
+                                <input type="number" id="as_prime_num" value="3" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="개수">
+                                <span>- D</span>
+                                <input type="number" id="as_prime_dia" value="22" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="직경">
+                            </div>
+                        </div>
+                        <!-- 인장측 철근 -->
+                        <div class="bg-gray-700 p-3 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">인장측 철근 (As)</label>
+                            <div class="input-group">
+                                <input type="number" id="as_num" value="3" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="개수">
+                                <span>- D</span>
+                                <input type="number" id="as_dia" value="22" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="직경">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="draw-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500 transition-colors duration-300 mt-6">
+                        PM 상관도 그리기
+                    </button>
+                </form>
+
+                <div id="error-message" class="mt-4 text-red-400 font-medium"></div>
+
+                <!-- 단면 시각화 -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-medium text-indigo-400 mb-2">단면 시각화</h3>
+                    <div class="bg-gray-700 p-4 rounded-lg aspect-w-1 aspect-h-1">
+                         <canvas id="section-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PM 상관도 그래프 -->
+            <div class="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold">P-M 상관도</h2>
+                    <div class="flex space-x-4 text-sm">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-cyan-400 rounded-full mr-2"></div>
+                            <span>공칭 강도 (Pn, Mn)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
+                            <span>설계 강도 (&phi;Pn, &phi;Mn)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full h-[600px] bg-gray-900 rounded-lg p-2">
+                    <canvas id="pm-canvas"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM 요소 가져오기 ---
-            const form = document.getElementById('pm-form');
-            const errorMessageDiv = document.getElementById('error-message');
-            
-            const pmCanvas = document.getElementById('pmDiagramCanvas');
-            const pmCtx = pmCanvas.getContext('2d');
-            
-            const sectionCanvas = document.getElementById('sectionCanvas');
-            const sectionCtx = sectionCanvas.getContext('2d');
+        // DOM 요소 가져오기
+        const form = document.getElementById('pm-form');
+        const drawBtn = document.getElementById('draw-btn');
+        const errorMessage = document.getElementById('error-message');
+        const pmCanvas = document.getElementById('pm-canvas');
+        const sectionCanvas = document.getElementById('section-canvas');
+        const pmCtx = pmCanvas.getContext('2d');
+        const sectionCtx = sectionCanvas.getContext('2d');
 
-            // --- 초기화 ---
-            drawInitialChart();
-            updateSectionView();
+        // 상수 정의
+        const Es = 200000; // 철근의 탄성계수 (MPa)
+        const epsilon_cu = 0.003; // 콘크리트의 극한 변형률
 
-            // --- 이벤트 리스너 ---
+        // --- 단면 시각화 로직 ---
+        function drawSection() {
+            const inputs = getInputs();
+            if (!inputs) return;
+
+            const { b, h, d_prime, as_prime_num, as_prime_dia, as_num, as_dia } = inputs;
+            const d = h - d_prime; // 유효깊이 d는 h와 d'로부터 계산
+
+            const canvas = sectionCanvas;
+            const ctx = sectionCtx;
+            const parent = canvas.parentElement;
+            
+            // 캔버스 크기를 부모 요소에 맞춤 (반응형)
+            const size = parent.clientWidth;
+            canvas.width = size;
+            canvas.height = size;
+
+            ctx.clearRect(0, 0, size, size);
+            
+            // 그리기 영역 설정
+            const padding = 30;
+            const drawWidth = size - 2 * padding;
+            const drawHeight = size - 2 * padding;
+            
+            const scale = Math.min(drawWidth / b, drawHeight / h);
+            
+            const rectWidth = b * scale;
+            const rectHeight = h * scale;
+            const xOffset = (size - rectWidth) / 2;
+            const yOffset = (size - rectHeight) / 2;
+
+            // 기둥 단면 그리기
+            ctx.strokeStyle = '#9ca3af'; // gray-400
+            ctx.lineWidth = 2;
+            ctx.strokeRect(xOffset, yOffset, rectWidth, rectHeight);
+
+            // 철근 그리기
+            const drawRebar = (num, dia, depth, color) => {
+                if (num > 0 && dia > 0) {
+                    const rebarRadius = (dia / 2) * scale;
+                    const yPos = yOffset + depth * scale;
+                    
+                    if (num === 1) {
+                        ctx.beginPath();
+                        ctx.arc(size / 2, yPos, rebarRadius, 0, 2 * Math.PI);
+                        ctx.fillStyle = color;
+                        ctx.fill();
+                    } else {
+                        const spacing = rectWidth / num;
+                        for (let i = 0; i < num; i++) {
+                            const xPos = xOffset + spacing / 2 + i * spacing;
+                            ctx.beginPath();
+                            ctx.arc(xPos, yPos, rebarRadius, 0, 2 * Math.PI);
+                            ctx.fillStyle = color;
+                            ctx.fill();
+                        }
+                    }
+                }
+            };
+            
+            // 압축 철근
+            drawRebar(as_prime_num, as_prime_dia, d_prime, '#f87171'); // red-400
+            // 인장 철근
+            drawRebar(as_num, as_dia, d, '#60a5fa'); // blue-400
+
+            // 치수선 그리기
+            ctx.fillStyle = '#d1d5db'; // gray-300
+            ctx.font = '12px Noto Sans KR';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // 폭(b) 치수
+            ctx.fillText(`b = ${b} mm`, size / 2, yOffset - 15);
+            // 깊이(h) 치수
+            ctx.save();
+            ctx.translate(xOffset - 15, size / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(`h = ${h} mm`, 0, 0);
+            ctx.restore();
+        }
+
+        // --- 입력값 처리 및 유효성 검사 ---
+        function getInputs() {
+            const inputs = {
+                fck: parseFloat(document.getElementById('fck').value),
+                fy: parseFloat(document.getElementById('fy').value),
+                b: parseFloat(document.getElementById('b').value),
+                h: parseFloat(document.getElementById('h').value),
+                d_prime: parseFloat(document.getElementById('d_prime').value),
+                as_prime_num: parseInt(document.getElementById('as_prime_num').value),
+                as_prime_dia: parseFloat(document.getElementById('as_prime_dia').value),
+                as_num: parseInt(document.getElementById('as_num').value),
+                as_dia: parseFloat(document.getElementById('as_dia').value),
+            };
+
+            // 유효성 검사
+            for (const key in inputs) {
+                if (isNaN(inputs[key]) || inputs[key] <= 0) {
+                    errorMessage.textContent = `오류: '${key}'에 유효한 양수 값을 입력하세요.`;
+                    return null;
+                }
+            }
+            
+            // d'과 d의 관계 확인
+            if (inputs.d_prime >= inputs.h / 2) {
+                errorMessage.textContent = "오류: d'은 h/2보다 작아야 합니다.";
+                return null;
+            }
+
+            errorMessage.textContent = ''; // 오류 메시지 초기화
+            return inputs;
+        }
+
+        // 철근 단면적 계산
+        function calculateSteelArea(num, dia) {
+            if (num > 0 && dia > 0) {
+                return num * (Math.PI * Math.pow(dia / 2, 2));
+            }
+            return 0;
+        }
+
+        // --- PM 상관도 계산 로직 ---
+        function calculatePMPoints() {
+            const params = getInputs();
+            if (!params) return null;
+
+            const { fck, fy, b, h, d_prime } = params;
+            const d = h - d_prime;
+            const As_prime = calculateSteelArea(params.as_prime_num, params.as_prime_dia);
+            const As = calculateSteelArea(params.as_num, params.as_dia);
+
+            // beta1 계산 (KCI 2021 기준)
+            let beta1;
+            if (fck <= 28) {
+                beta1 = 0.85;
+            } else if (fck > 56) {
+                beta1 = 0.65;
+            } else {
+                beta1 = 0.85 - 0.05 * (fck - 28) / 7;
+            }
+            
+            const epsilon_y = fy / Es;
+            const points = [];
+
+            // 1. 순수 압축점 (Pure Compression)
+            const Po = 0.85 * fck * (b * h - As - As_prime) + (As + As_prime) * fy;
+            points.push({ c: Infinity, Pn: Po, Mn: 0 });
+
+            // 2. 중립축(c) 변화에 따른 점들 계산
+            // 중립축 깊이 c를 여러 구간으로 나누어 계산
+            const c_steps = [
+                ...Array.from({length: 100}, (_, i) => h * 5 - i * (h*5-d)/100), // 압축 지배
+                ...Array.from({length: 200}, (_, i) => d - i * (d - d_prime)/200), // 전이 구간
+                ...Array.from({length: 100}, (_, i) => d_prime - i * d_prime/100) // 인장 지배
+            ];
+            
+            for (const c of c_steps) {
+                if (c <= 0.001) continue;
+
+                const a = beta1 * c;
+                
+                // 변형률 계산 (Strain Compatibility)
+                const epsilon_s_prime = epsilon_cu * (c - d_prime) / c;
+                const epsilon_s = epsilon_cu * (d - c) / c;
+
+                // 철근 응력 계산
+                let fs_prime = Es * epsilon_s_prime;
+                fs_prime = Math.max(-fy, Math.min(fy, fs_prime));
+
+                let fs = Es * epsilon_s;
+                fs = Math.max(-fy, Math.min(fy, fs));
+                
+                // 힘 계산
+                const Cc = 0.85 * fck * a * b;
+                // 압축철근이 차지하는 콘크리트 면적 보정
+                const Cs = As_prime * (fs_prime - (c > d_prime ? 0.85 * fck : 0));
+                const Ts = As * fs;
+
+                // 공칭 축력 및 모멘트 계산
+                const Pn = Cc + Cs - Ts;
+                // 단면의 중심에 대한 모멘트
+                const Mn = Cc * (h / 2 - a / 2) + Cs * (h / 2 - d_prime) + Ts * (d - h / 2);
+                
+                if (Pn >= 0 && Mn >= 0) {
+                    points.push({ c, Pn, Mn, epsilon_s });
+                }
+            }
+
+            // 3. 순수 인장점 (Pure Tension)
+            const Pt = -(As + As_prime) * fy;
+            points.push({ c: 0, Pn: Pt, Mn: 0 });
+
+            // 강도감소계수(phi) 적용
+            const designPoints = points.map(p => {
+                let phi;
+                const epsilon_t = p.epsilon_s;
+                
+                if (p.Pn < 0) { // 순수 인장
+                    phi = 0.85;
+                } else if (epsilon_t === undefined || epsilon_t <= epsilon_y) { // 압축 지배
+                    phi = 0.65; // 띠철근 기둥 가정
+                } else if (epsilon_t >= 0.005) { // 인장 지배
+                    phi = 0.85;
+                } else { // 전이 구간
+                    phi = 0.65 + 0.20 * (epsilon_t - epsilon_y) / (0.005 - epsilon_y);
+                }
+                
+                return {
+                    Pn: phi * p.Pn,
+                    Mn: phi * p.Mn
+                };
+            });
+
+            // 단위를 kN, kN.m로 변환
+            const nominalPoints = points.map(p => ({ m: p.Mn / 1e6, p: p.Pn / 1e3 }));
+            const phiPoints = designPoints.map(p => ({ m: p.Mn / 1e6, p: p.Pn / 1e3 }));
+            
+            // 축력이 0 이하인 부분은 제외 (일반적인 PM선도 표현)
+            return {
+                nominal: nominalPoints.filter(pt => pt.p >= 0),
+                design: phiPoints.filter(pt => pt.p >= 0)
+            };
+        }
+
+        // --- PM 상관도 그래프 그리기 ---
+        function drawPMDiagram(data) {
+            const { nominal, design } = data;
+            const canvas = pmCanvas;
+            const ctx = pmCtx;
+            
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 최대값 찾기 (스케일링을 위해)
+            const maxM = Math.max(...nominal.map(p => p.m), 0);
+            const maxP = Math.max(...nominal.map(p => p.p), 0);
+            
+            if (maxM === 0 || maxP === 0) return;
+
+            // 여백 및 스케일 설정
+            const margin = { top: 40, right: 40, bottom: 60, left: 80 };
+            const chartWidth = canvas.width - margin.left - margin.right;
+            const chartHeight = canvas.height - margin.top - margin.bottom;
+
+            const xScale = chartWidth / (maxM * 1.1);
+            const yScale = chartHeight / (maxP * 1.1);
+
+            // 좌표 변환 함수
+            const transform = (m, p) => ({
+                x: margin.left + m * xScale,
+                y: canvas.height - margin.bottom - p * yScale
+            });
+
+            // 축 및 그리드 그리기
+            ctx.strokeStyle = '#4a5568'; // gray-600
+            ctx.fillStyle = '#a0aec0'; // gray-400
+            ctx.lineWidth = 1;
+            ctx.font = '12px Noto Sans KR';
+
+            // Y축 (축하중)
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 10; i++) {
+                const pValue = (maxP * 1.1 / 10) * i;
+                const yPos = transform(0, pValue).y;
+                ctx.fillText(pValue.toFixed(0), margin.left - 10, yPos);
+                ctx.beginPath();
+                ctx.moveTo(margin.left, yPos);
+                ctx.lineTo(margin.left + chartWidth, yPos);
+                ctx.stroke();
+            }
+            ctx.save();
+            ctx.translate(margin.left - 60, canvas.height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.font = '14px Noto Sans KR';
+            ctx.fillText('축하중 (P, kN)', 0, 0);
+            ctx.restore();
+
+            // X축 (모멘트)
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 10; i++) {
+                const mValue = (maxM * 1.1 / 10) * i;
+                const xPos = transform(mValue, 0).x;
+                ctx.fillText(mValue.toFixed(0), xPos, canvas.height - margin.bottom + 10);
+                ctx.beginPath();
+                ctx.moveTo(xPos, margin.top);
+                ctx.lineTo(xPos, canvas.height - margin.bottom);
+                ctx.stroke();
+            }
+            ctx.fillText('모멘트 (M, kN·m)', canvas.width / 2, canvas.height - margin.bottom + 40);
+
+            // 곡선 그리기 함수
+            const drawCurve = (points, color) => {
+                if (points.length < 2) return;
+                ctx.beginPath();
+                const startPoint = transform(points[0].m, points[0].p);
+                ctx.moveTo(startPoint.x, startPoint.y);
+                points.forEach(point => {
+                    const p = transform(point.m, point.p);
+                    ctx.lineTo(p.x, p.y);
+                });
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            };
+
+            // 공칭 강도 곡선
+            drawCurve(nominal, '#22d3ee'); // cyan-400
+            // 설계 강도 곡선
+            drawCurve(design, '#ef4444'); // red-500
+        }
+
+        // --- 이벤트 리스너 설정 ---
+        function init() {
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const inputs = getAndValidateInputs();
-                if (inputs) {
-                    const points = calculatePMDiagram(inputs);
-                    drawDiagram(points, inputs);
-                }
+                drawBtn.disabled = true;
+                drawBtn.textContent = '계산 중...';
+                
+                // 비동기 처리를 위해 setTimeout 사용 (UI 렌더링 보장)
+                setTimeout(() => {
+                    const points = calculatePMPoints();
+                    if (points) {
+                        drawPMDiagram(points);
+                    }
+                    drawBtn.disabled = false;
+                    drawBtn.textContent = 'PM 상관도 그리기';
+                }, 50);
             });
             
             // 입력값 변경 시 단면 실시간 업데이트
-            const sectionInputs = ['b', 'h', 'd', 'd_prime', 'As', 'As_prime'];
-            sectionInputs.forEach(id => {
-                document.getElementById(id).addEventListener('input', updateSectionView);
+            const inputsForSection = ['b', 'h', 'd_prime', 'as_prime_num', 'as_prime_dia', 'as_num', 'as_dia'];
+            inputsForSection.forEach(id => {
+                document.getElementById(id).addEventListener('input', drawSection);
             });
-            
-            // 캔버스 컨테이너 크기 변경시 다시 그리기
-            new ResizeObserver(() => {
-                 const inputs = getAndValidateInputs();
-                 if (inputs) {
-                    const points = calculatePMDiagram(inputs);
-                    drawDiagram(points, inputs);
-                    drawSection(inputs);
-                 } else {
-                    drawInitialChart();
-                    drawInitialSection();
-                 }
-            }).observe(pmCanvas.parentElement);
-            
-            new ResizeObserver(() => {
-                updateSectionView();
-            }).observe(sectionCanvas.parentElement);
 
-
-            // --- 함수 정의 ---
-
-            function updateSectionView() {
-                const inputs = getAndValidateInputs(false); // 오류 메시지 없이 입력값 가져오기
-                if (inputs) {
-                    drawSection(inputs);
-                } else {
-                    drawInitialSection();
+            // 창 크기 변경 시 다시 그리기
+            window.addEventListener('resize', () => {
+                drawSection();
+                const points = calculatePMPoints();
+                if (points) {
+                    drawPMDiagram(points);
                 }
-            }
-            
-            function getAndValidateInputs(showError = true) {
-                const fck = parseFloat(document.getElementById('fck').value);
-                const fy = parseFloat(document.getElementById('fy').value);
-                const b = parseFloat(document.getElementById('b').value);
-                const h = parseFloat(document.getElementById('h').value);
-                const d = parseFloat(document.getElementById('d').value);
-                const d_prime = parseFloat(document.getElementById('d_prime').value);
-                const As = parseFloat(document.getElementById('As').value);
-                const As_prime = parseFloat(document.getElementById('As_prime').value);
+            });
 
-                const inputs = { fck, fy, b, h, d, d_prime, As, As_prime };
+            // 초기 로드 시 그리기
+            drawSection();
+            drawBtn.click();
+        }
 
-                for (const key in inputs) {
-                    if (isNaN(inputs[key]) || (showError && inputs[key] <= 0)) {
-                        if (showError) errorMessageDiv.textContent = `오류: 모든 값은 0보다 큰 숫자여야 합니다. (${key})`;
-                        return null;
-                    }
-                }
-                
-                if (showError && (d >= h || d_prime >= h || d <= d_prime)) {
-                    errorMessageDiv.textContent = '오류: 철근 깊이(d, d\')가 유효하지 않습니다.';
-                    return null;
-                }
+        // 애플리케이션 초기화
+        document.addEventListener('DOMContentLoaded', init);
 
-                if (showError) errorMessageDiv.textContent = '';
-                return inputs;
-            }
-
-            function calculatePMDiagram(inputs) {
-                const { fck, fy, b, h, d, d_prime, As, As_prime } = inputs;
-                const Es = 200000;
-                const epsilon_cu = 0.003;
-                let beta1 = (fck <= 28) ? 0.85 : Math.max(0.65, 0.85 - 0.05 * (fck - 28) / 7);
-                const epsilon_y = fy / Es;
-
-                const nominalPoints = [];
-                const designPoints = [];
-                const c_max = h * 5, c_min = 0.001, steps = 1000;
-
-                for (let i = 0; i <= steps; i++) {
-                    const c = c_max - i * (c_max - c_min) / steps;
-                    if (c <= 0) continue;
-                    const a = beta1 * c;
-                    const epsilon_s_prime = epsilon_cu * (c - d_prime) / c;
-                    const epsilon_s = epsilon_cu * (d - c) / c;
-                    let fs_prime = Math.max(-fy, Math.min(fy, epsilon_s_prime * Es));
-                    let fs = Math.max(-fy, Math.min(fy, epsilon_s * Es));
-                    const Cc = 0.85 * fck * a * b;
-                    const Cs = As_prime * (fs_prime - (a > d_prime ? 0.85 * fck : 0));
-                    const Ts = As * fs;
-                    const Pn = (Cc + Cs - Ts) / 1000;
-                    const Mn = (Cc * (h / 2 - a / 2) + Cs * (h / 2 - d_prime) + Ts * (d - h / 2)) / 1000000;
-                    const epsilon_t = epsilon_s;
-                    let phi = (epsilon_t <= epsilon_y) ? 0.65 : (epsilon_t >= 0.005) ? 0.85 : 0.65 + 0.20 * (epsilon_t - epsilon_y) / (0.005 - epsilon_y);
-
-                    if (Pn >= 0 && Mn >= 0) {
-                        nominalPoints.push({ M: Mn, P: Pn });
-                        designPoints.push({ M: phi * Mn, P: phi * Pn });
-                    }
-                }
-                
-                const P_tension = -(As + As_prime) * fy / 1000;
-                nominalPoints.push({ M: 0, P: P_tension });
-                designPoints.push({ M: 0, P: 0.85 * P_tension });
-
-                return { nominalPoints, designPoints };
-            }
-
-            function drawDiagram(points, inputs) {
-                const { nominalPoints, designPoints } = points;
-                const dpr = window.devicePixelRatio || 1;
-                const rect = pmCanvas.getBoundingClientRect();
-                pmCanvas.width = rect.width * dpr;
-                pmCanvas.height = rect.height * dpr;
-                pmCtx.scale(dpr, dpr);
-                const width = pmCanvas.width / dpr;
-                const height = pmCanvas.height / dpr;
-
-                pmCtx.clearRect(0, 0, width, height);
-                pmCtx.fillStyle = '#1f2937';
-                pmCtx.fillRect(0, 0, width, height);
-
-                const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-                const chartWidth = width - margin.left - margin.right;
-                const chartHeight = height - margin.top - margin.bottom;
-
-                const maxM = Math.max(...nominalPoints.map(p => p.M), 0) * 1.1;
-                const maxP = Math.max(...nominalPoints.map(p => p.P), 0) * 1.1;
-                const minP = Math.min(...nominalPoints.map(p => p.P), 0) * 1.1;
-                if (maxM === 0 || maxP - minP === 0) return;
-
-                const scaleX = chartWidth / maxM;
-                const scaleY = chartHeight / (maxP - minP);
-
-                pmCtx.save();
-                pmCtx.translate(margin.left, margin.top + (maxP * scaleY));
-                
-                drawGrid(pmCtx, chartWidth, chartHeight, maxP, minP, scaleY);
-                
-                pmCtx.beginPath();
-                pmCtx.moveTo(0, 0);
-                pmCtx.lineTo(chartWidth, 0);
-                pmCtx.moveTo(0, -(maxP * scaleY));
-                pmCtx.lineTo(0, -(minP * scaleY));
-                pmCtx.strokeStyle = '#4b5563';
-                pmCtx.lineWidth = 1;
-                pmCtx.stroke();
-                
-                drawCurve(pmCtx, nominalPoints, '#3b82f6', 2.5, scaleX, scaleY);
-                drawCurve(pmCtx, designPoints, '#ef4444', 2.5, scaleX, scaleY, true);
-
-                pmCtx.restore();
-
-                drawAxisLabelsAndTicks(pmCtx, width, height, margin, maxM, maxP, minP, scaleX, scaleY);
-                drawLegend(pmCtx, width, margin);
-            }
-            
-            // --- 단면 그리기 함수 ---
-            function drawSection(inputs) {
-                const { b, h, d, d_prime, As, As_prime } = inputs;
-                const dpr = window.devicePixelRatio || 1;
-                const rect = sectionCanvas.getBoundingClientRect();
-                sectionCanvas.width = rect.width * dpr;
-                sectionCanvas.height = rect.height * dpr;
-                sectionCtx.scale(dpr, dpr);
-                const width = sectionCanvas.width / dpr;
-                const height = sectionCanvas.height / dpr;
-
-                sectionCtx.clearRect(0, 0, width, height);
-                sectionCtx.fillStyle = '#1f2937';
-                sectionCtx.fillRect(0, 0, width, height);
-
-                // --- 스케일 및 여백 설정 ---
-                const padding = 40;
-                const scale = Math.min((width - padding * 2) / b, (height - padding * 2) / h);
-                const scaledB = b * scale;
-                const scaledH = h * scale;
-                const offsetX = (width - scaledB) / 2;
-                const offsetY = (height - scaledH) / 2;
-
-                // --- 콘크리트 단면 그리기 ---
-                sectionCtx.strokeStyle = '#9ca3af'; // gray-400
-                sectionCtx.lineWidth = 2;
-                sectionCtx.strokeRect(offsetX, offsetY, scaledB, scaledH);
-
-                // --- 철근 그리기 ---
-                // 시각화를 위해 D25(면적 507mm^2) 철근으로 가정하여 개수 계산
-                const rebarArea = 506.7;
-                const rebarRadius = (25.4 / 2) * scale;
-                const n_s_prime = As_prime > 0 ? Math.max(1, Math.round(As_prime / rebarArea)) : 0;
-                const n_s = As > 0 ? Math.max(1, Math.round(As / rebarArea)) : 0;
-
-                sectionCtx.fillStyle = '#d1d5db'; // gray-300
-                // 압축철근
-                if (n_s_prime > 0) {
-                    for (let i = 0; i < n_s_prime; i++) {
-                        const x = offsetX + (n_s_prime === 1 ? scaledB / 2 : (i + 1) * scaledB / (n_s_prime + 1));
-                        const y = offsetY + d_prime * scale;
-                        sectionCtx.beginPath();
-                        sectionCtx.arc(x, y, rebarRadius, 0, 2 * Math.PI);
-                        sectionCtx.fill();
-                    }
-                }
-                // 인장철근
-                if (n_s > 0) {
-                    for (let i = 0; i < n_s; i++) {
-                        const x = offsetX + (n_s === 1 ? scaledB / 2 : (i + 1) * scaledB / (n_s + 1));
-                        const y = offsetY + d * scale;
-                        sectionCtx.beginPath();
-                        sectionCtx.arc(x, y, rebarRadius, 0, 2 * Math.PI);
-                        sectionCtx.fill();
-                    }
-                }
-
-                // --- 치수선 그리기 ---
-                drawDimension(sectionCtx, offsetX, offsetY, scaledB, scaledH, {b, h, d, d_prime}, scale);
-            }
-
-            function drawDimension(ctx, ox, oy, sB, sH, dims, scale) {
-                ctx.strokeStyle = '#6b7280'; // gray-500
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '11px "Noto Sans KR"';
-                ctx.lineWidth = 1;
-                
-                // h 치수
-                drawDimLine(ctx, ox - 10, oy, ox - 10, oy + sH, `${dims.h} mm`);
-                // b 치수
-                drawDimLine(ctx, ox, oy + sH + 10, ox + sB, oy + sH + 10, `${dims.b} mm`, 'bottom');
-                
-                // d' 치수
-                ctx.beginPath();
-                ctx.moveTo(ox + sB, oy);
-                ctx.lineTo(ox + sB + 10, oy);
-                ctx.moveTo(ox + sB, oy + dims.d_prime * scale);
-                ctx.lineTo(ox + sB + 10, oy + dims.d_prime * scale);
-                ctx.stroke();
-                drawDimLine(ctx, ox + sB + 15, oy, ox + sB + 15, oy + dims.d_prime * scale, `${dims.d_prime}`);
-
-                // d 치수
-                ctx.beginPath();
-                ctx.moveTo(ox + sB, oy + dims.d * scale);
-                ctx.lineTo(ox + sB + 10, oy + dims.d * scale);
-                ctx.stroke();
-                drawDimLine(ctx, ox + sB + 15, oy, ox + sB + 15, oy + dims.d * scale, `${dims.d}`);
-            }
-
-            function drawDimLine(ctx, x1, y1, x2, y2, text, pos = 'left') {
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                // 화살표
-                ctx.moveTo(x1, y1); ctx.lineTo(x1 + (pos === 'bottom' ? 0 : 4), y1 + (pos === 'bottom' ? 4 : 0));
-                ctx.moveTo(x1, y1); ctx.lineTo(x1 - (pos === 'bottom' ? 0 : 4), y1 - (pos === 'bottom' ? 4 : 0));
-                ctx.moveTo(x2, y2); ctx.lineTo(x2 + (pos === 'bottom' ? 0 : -4), y2 + (pos === 'bottom' ? -4 : 0));
-                ctx.moveTo(x2, y2); ctx.lineTo(x2 - (pos === 'bottom' ? 0 : -4), y2 - (pos === 'bottom' ? -4 : 0));
-                ctx.stroke();
-                ctx.save();
-                ctx.translate((x1 + x2) / 2, (y1 + y2) / 2);
-                if (pos === 'left') {
-                    ctx.rotate(-Math.PI / 2);
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'bottom';
-                } else { // bottom
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                }
-                ctx.fillText(text, 0, pos === 'left' ? -5 : 5);
-                ctx.restore();
-            }
-
-            // --- 초기 차트/섹션 그리기 함수 ---
-            function drawInitialChart() {
-                drawInitialState(pmCtx, pmCanvas, '좌측에 변수를 입력하고 버튼을 클릭하여 PM 상관도를 생성하세요.');
-            }
-
-            function drawInitialSection() {
-                drawInitialState(sectionCtx, sectionCanvas, '입력값에 따라 단면이 표시됩니다.');
-            }
-
-            function drawInitialState(ctx, canvas, text) {
-                const dpr = window.devicePixelRatio || 1;
-                const rect = canvas.getBoundingClientRect();
-                canvas.width = rect.width * dpr;
-                canvas.height = rect.height * dpr;
-                ctx.scale(dpr, dpr);
-                const width = canvas.width / dpr;
-                const height = canvas.height / dpr;
-
-                ctx.clearRect(0, 0, width, height);
-                ctx.fillStyle = '#1f2937';
-                ctx.fillRect(0, 0, width, height);
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '16px "Noto Sans KR"';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(text, width / 2, height / 2);
-            }
-
-            // --- 다이어그램 그리기 헬퍼 함수 ---
-            function drawGrid(ctx, w, h, maxP, minP, sY) {
-                ctx.strokeStyle = '#374151'; ctx.lineWidth = 0.5; const c = 5;
-                for (let i = 1; i <= c; i++) {
-                    let y = -(maxP * sY) + i * (h / c); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-                    let x = i * (w / c); ctx.beginPath(); ctx.moveTo(x, -(maxP * sY)); ctx.lineTo(x, -(minP * sY)); ctx.stroke();
-                }
-            }
-            function drawCurve(ctx, data, color, lw, sX, sY, dashed = false) {
-                if (data.length === 0) return;
-                ctx.beginPath(); ctx.moveTo(data[0].M * sX, -data[0].P * sY);
-                data.forEach(p => ctx.lineTo(p.M * sX, -p.P * sY));
-                ctx.strokeStyle = color; ctx.lineWidth = lw;
-                if (dashed) ctx.setLineDash([8, 6]);
-                ctx.stroke(); ctx.setLineDash([]);
-            }
-            function drawAxisLabelsAndTicks(ctx, w, h, m, maxM, maxP, minP, sX, sY) {
-                ctx.fillStyle = '#9ca3af'; ctx.font = '12px "Noto Sans KR"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText('모멘트 (M, kN·m)', w / 2, h - 15);
-                for (let i = 0; i <= 5; i++) {
-                    const val = (maxM / 5 * i); ctx.fillText(val.toFixed(0), m.left + val * sX, m.top + maxP * sY + 20);
-                }
-                ctx.save(); ctx.translate(25, h / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('축하중 (P, kN)', 0, 0); ctx.restore();
-                for (let i = 0; i <= 5; i++) {
-                    const val = minP + (maxP - minP) / 5 * i; ctx.textAlign = 'right'; ctx.fillText(val.toFixed(0), m.left - 10, m.top + maxP * sY - val * sY);
-                }
-            }
-            function drawLegend(ctx, w, m) {
-                ctx.font = '12px "Noto Sans KR"'; const x = w - m.right - 120, y = m.top + 10;
-                ctx.fillStyle = '#3b82f6'; ctx.fillRect(x, y, 20, 2);
-                ctx.fillStyle = '#d1d5db'; ctx.textAlign = 'left'; ctx.fillText('공칭강도 (Pn, Mn)', x + 25, y + 1);
-                ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x, y + 20); ctx.lineTo(x + 20, y + 20); ctx.stroke(); ctx.setLineDash([]);
-                ctx.fillStyle = '#d1d5db'; ctx.fillText('설계강도 (ΦPn, ΦMn)', x + 25, y + 21);
-            }
-        });
     </script>
 </body>
 </html>
