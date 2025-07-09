@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>보 전단력 및 굽힘 모멘트 계산기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #1a202c; /* Dark background */
+        color: #e2e8f0; /* Light text */
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .container {
+        background-color: #2d3748; /* Darker container background */
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 1200px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .input-section {
+        background-color: #4a5568; /* Even darker section background */
+        border-radius: 8px;
+        padding: 20px;
+      }
+      .output-section {
+        background-color: #4a5568; /* Even darker section background */
+        border-radius: 8px;
+        padding: 20px;
+        display: flex; /* Use flexbox for output section content */
+        flex-direction: column; /* Stack children vertically */
+      }
+      .output-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start; /* Align items to the top */
+        width: 100%;
+        margin-bottom: 20px; /* Space below the header */
+      }
+      .output-header h2 {
+        margin-bottom: 0; /* Remove default margin from h2 */
+      }
+      .output-header .visual-container {
+        flex-shrink: 0; /* Prevent shrinking */
+        text-align: right; /* Align text to the right */
+      }
+      .output-header .visual-container h3 {
+        margin-bottom: 10px; /* Space between title and canvas */
+      }
+
+      h1,
+      h2 {
+        color: #63b3ed; /* Blue headings */
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #cbd5e0;
+      }
+      input[type="number"],
+      input[type="text"],
+      select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #718096;
+        background-color: #2d3748;
+        color: #e2e8f0;
+        margin-bottom: 15px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #63b3ed;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-weight: 700;
+        transition: background-color 0.3s ease;
+      }
+      button:hover {
+        background-color: #4299e1;
+      }
+      .load-item {
+        background-color: #2d3748;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+      }
+      .load-item > div {
+        flex: 1;
+        min-width: 120px;
+      }
+      .load-item button {
+        background-color: #e53e3e;
+        padding: 8px 12px;
+        font-size: 0.875rem;
+      }
+      .load-item button:hover {
+        background-color: #c53030;
+      }
+      canvas {
+        background-color: #1a202c;
+        border-radius: 8px;
+        border: 1px solid #718096;
+        width: 100%; /* Make canvas responsive */
+        height: auto; /* Maintain aspect ratio */
+        max-height: 400px; /* Max height for diagrams */
+        margin-top: 15px;
+      }
+      #beamVisualCanvas {
+        width: 100%; /* Make visual canvas responsive */
+        height: 250px; /* Increased height for visual representation */
+        margin-top: 0; /* Remove top margin as it's in a flex container */
+      }
+      @media (min-width: 768px) {
+        .container {
+          flex-direction: row;
+        }
+        .input-section {
+          flex: 1;
+        }
+        .output-section {
+          flex: 2;
+        }
+        #beamVisualCanvas {
+          width: 350px; /* Fixed width for visual canvas on larger screens */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="input-section">
+        <h2>입력 조건</h2>
+        <div>
+          <label for="beamLength">보의 길이 (m):</label>
+          <input
+            type="number"
+            id="beamLength"
+            value="10"
+            min="1"
+            step="0.1"
+            oninput="calculateAndDraw()"
+          />
+        </div>
+        <!-- 보의 단면 입력 필드 삭제됨 -->
+        <div>
+          <label for="supportCondition">양단 지지조건:</label>
+          <select id="supportCondition" onchange="calculateAndDraw()">
+            <option value="simplySupported">단순 지지 (Pinned-Roller)</option>
+            <option value="cantilever">외팔보 (Fixed-Free)</option>
+            <option value="fixedFixed">양단 고정 (Fixed-Fixed)</option>
+          </select>
+          <p class="text-sm text-gray-400 mt-1">
+            양단 고정 조건은 전체 길이에 걸쳐 작용하는 등분포/변화분포 하중 및
+            집중 하중에 대해 정확하게 계산됩니다. 부분 하중의 경우 근사치가 될
+            수 있습니다.
+          </p>
+        </div>
+
+        <h3 class="text-xl text-blue-300 mt-6 mb-4">하중 입력</h3>
+        <div id="loadsContainer">
+          <!-- Loads will be added here dynamically -->
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button onclick="addLoad('point')">집중하중 추가</button>
+          <button onclick="addLoad('uniform')">분포하중 추가</button>
+          <button onclick="addLoad('varying')">변화분포하중 추가</button>
+        </div>
+
+        <button class="w-full mt-8" onclick="calculateAndDraw()">
+          계산 및 그리기
+        </button>
+      </div>
+
+      <div class="output-section">
+        <div class="output-header">
+          <h2>출력</h2>
+          <div class="visual-container">
+            <h3 class="text-xl text-blue-300">입력 조건 시각화</h3>
+            <canvas id="beamVisualCanvas"></canvas>
+          </div>
+        </div>
+
+        <h3 class="text-xl text-blue-300 mb-2">
+          전단력 선도 (Shear Force Diagram)
+        </h3>
+        <canvas id="sfdCanvas"></canvas>
+
+        <h3 class="text-xl text-blue-300 mt-6 mb-2">
+          굽힘 모멘트 선도 (Bending Moment Diagram)
+        </h3>
+        <canvas id="bmdCanvas"></canvas>
+      </div>
+    </div>
+
+    <script>
+      // 전역 변수 설정
+      const beamLengthInput = document.getElementById("beamLength");
+      const supportConditionSelect =
+        document.getElementById("supportCondition");
+      const sfdCanvas = document.getElementById("sfdCanvas");
+      const bmdCanvas = document.getElementById("bmdCanvas");
+      const beamVisualCanvas = document.getElementById("beamVisualCanvas");
+      const sfdCtx = sfdCanvas.getContext("2d");
+      const bmdCtx = bmdCanvas.getContext("2d");
+      const beamVisualCtx = beamVisualCanvas.getContext("2d");
+      const loadsContainer = document.getElementById("loadsContainer");
+
+      let loads = []; // 하중 데이터를 저장할 배열
+
+      // 캔버스 크기 조정 함수
+      function resizeCanvas() {
+        const containerWidth = sfdCanvas.parentElement.clientWidth;
+        sfdCanvas.width = containerWidth;
+        sfdCanvas.height = 400; // 고정 높이
+        bmdCanvas.width = containerWidth;
+        bmdCanvas.height = 400; // 고정 높이
+        // beamVisualCanvas.width와 height는 CSS에서 제어
+      }
+
+      // 초기 로드 시 캔버스 크기 조정 및 리사이즈 이벤트 리스너 추가
+      window.onload = () => {
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+        calculateAndDraw(); // 초기 로드 시 한 번 계산 및 그리기
+      };
+
+      /**
+       * 새로운 하중 입력 필드를 추가하는 함수
+       * @param {string} type - 하중의 종류 ('point', 'uniform', 'varying')
+       */
+      function addLoad(type) {
+        const loadId = Date.now(); // 고유 ID 생성
+        let loadHtml = `
+                <div class="load-item" data-id="${loadId}" data-type="${type}">
+                    <div>
+                        <label>종류:</label>
+                        <span class="text-blue-200">${
+                          type === "point"
+                            ? "집중하중"
+                            : type === "uniform"
+                            ? "등분포하중"
+                            : "변화분포하중"
+                        }</span>
+                    </div>
+            `;
+
+        if (type === "point") {
+          loadHtml += `
+                    <div>
+                        <label for="magnitude-${loadId}">크기 (kN):</label>
+                        <input type="number" id="magnitude-${loadId}" value="10" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="position-${loadId}">위치 (m):</label>
+                        <input type="number" id="position-${loadId}" value="5" min="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                `;
+        } else if (type === "uniform") {
+          loadHtml += `
+                    <div>
+                        <label for="magnitude-${loadId}">크기 (kN/m):</label>
+                        <input type="number" id="magnitude-${loadId}" value="2" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="start-${loadId}">시작 위치 (m):</label>
+                        <input type="number" id="start-${loadId}" value="2" min="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="end-${loadId}">끝 위치 (m):</label>
+                        <input type="number" id="end-${loadId}" value="8" min="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                `;
+        } else if (type === "varying") {
+          loadHtml += `
+                    <div>
+                        <label for="startMagnitude-${loadId}">시작 크기 (kN/m):</label>
+                        <input type="number" id="startMagnitude-${loadId}" value="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="endMagnitude-${loadId}">끝 크기 (kN/m):</label>
+                        <input type="number" id="endMagnitude-${loadId}" value="5" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="start-${loadId}">시작 위치 (m):</label>
+                        <input type="number" id="start-${loadId}" value="0" min="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                    <div>
+                        <label for="end-${loadId}">끝 위치 (m):</label>
+                        <input type="number" id="end-${loadId}" value="10" min="0" step="0.1" oninput="calculateAndDraw()">
+                    </div>
+                `;
+        }
+
+        loadHtml += `
+                    <button onclick="removeLoad(${loadId})">삭제</button>
+                </div>
+            `;
+        loadsContainer.insertAdjacentHTML("beforeend", loadHtml);
+        calculateAndDraw(); // 하중 추가 후 다시 계산
+      }
+
+      /**
+       * 하중 입력 필드를 제거하는 함수
+       * @param {number} id - 제거할 하중의 고유 ID
+       */
+      function removeLoad(id) {
+        const loadItem = document.querySelector(`.load-item[data-id="${id}"]`);
+        if (loadItem) {
+          loadItem.remove();
+          calculateAndDraw(); // 하중 제거 후 다시 계산
+        }
+      }
+
+      /**
+       * 모든 하중 입력 필드에서 데이터를 읽어 loads 배열을 업데이트하는 함수
+       */
+      function getLoadsData() {
+        loads = [];
+        const loadItems = loadsContainer.querySelectorAll(".load-item");
+        const beamLength = parseFloat(beamLengthInput.value);
+
+        loadItems.forEach((item) => {
+          const type = item.dataset.type;
+          const id = parseInt(item.dataset.id);
+          let load = { id, type };
+
+          if (type === "point") {
+            load.magnitude = parseFloat(
+              item.querySelector(`#magnitude-${id}`).value
+            );
+            load.position = parseFloat(
+              item.querySelector(`#position-${id}`).value
+            );
+            // 위치 유효성 검사
+            if (
+              isNaN(load.position) ||
+              load.position < 0 ||
+              load.position > beamLength
+            ) {
+              console.warn(
+                `집중하중 위치 오류: ${load.position} (0-${beamLength} 범위 벗어남). 강제 조정.`
+              );
+              load.position = Math.max(0, Math.min(beamLength, load.position)); // 범위 내로 강제 조정
+            }
+          } else if (type === "uniform") {
+            load.magnitude = parseFloat(
+              item.querySelector(`#magnitude-${id}`).value
+            );
+            load.start = parseFloat(item.querySelector(`#start-${id}`).value);
+            load.end = parseFloat(item.querySelector(`#end-${id}`).value);
+            // 범위 유효성 검사
+            if (
+              isNaN(load.start) ||
+              isNaN(load.end) ||
+              load.start < 0 ||
+              load.end > beamLength ||
+              load.start >= load.end
+            ) {
+              console.warn(
+                `등분포하중 범위 오류: 시작 ${load.start}, 끝 ${load.end} (0-${beamLength} 범위 벗어나거나 시작이 끝보다 큼). 강제 조정.`
+              );
+              load.start = Math.max(0, Math.min(beamLength, load.start));
+              load.end = Math.max(
+                load.start + 0.01,
+                Math.min(beamLength, load.end)
+              ); // 최소 0.01m 길이 보장
+            }
+          } else if (type === "varying") {
+            load.startMagnitude = parseFloat(
+              item.querySelector(`#startMagnitude-${id}`).value
+            );
+            load.endMagnitude = parseFloat(
+              item.querySelector(`#endMagnitude-${id}`).value
+            );
+            load.start = parseFloat(item.querySelector(`#start-${id}`).value);
+            load.end = parseFloat(item.querySelector(`#end-${id}`).value);
+            // 범위 유효성 검사
+            if (
+              isNaN(load.start) ||
+              isNaN(load.end) ||
+              load.start < 0 ||
+              load.end > beamLength ||
+              load.start >= load.end
+            ) {
+              console.warn(
+                `변화분포하중 범위 오류: 시작 ${load.start}, 끝 ${load.end} (0-${beamLength} 범위 벗어나거나 시작이 끝보다 큼). 강제 조정.`
+              );
+              load.start = Math.max(0, Math.min(beamLength, load.start));
+              load.end = Math.max(
+                load.start + 0.01,
+                Math.min(beamLength, load.end)
+              );
+            }
+          }
+          loads.push(load);
+        });
+      }
+
+      /**
+       * 보의 반력을 계산하는 함수
+       * @param {number} L - 보의 길이
+       * @param {Array<Object>} loads - 하중 배열
+       * @param {string} supportType - 지지 조건 ('simplySupported', 'cantilever', 'fixedFixed')
+       * @returns {Object} - { R_A, R_B, M_A, M_B } (반력 및 모멘트)
+       */
+      function calculateReactions(L, loads, supportType) {
+        let R_A = 0,
+          R_B = 0,
+          M_A = 0,
+          M_B = 0; // 초기화
+
+        if (supportType === "simplySupported") {
+          let totalForce = 0;
+          let momentAboutA = 0; // A 지점(왼쪽 끝)에 대한 모멘트 합
+
+          loads.forEach((load) => {
+            if (load.type === "point") {
+              totalForce += load.magnitude;
+              momentAboutA += load.magnitude * load.position;
+            } else if (load.type === "uniform") {
+              const length = load.end - load.start;
+              const equivalentForce = load.magnitude * length;
+              const centroidPos = load.start + length / 2;
+              totalForce += equivalentForce;
+              momentAboutA += equivalentForce * centroidPos;
+            } else if (load.type === "varying") {
+              const length = load.end - load.start;
+              const w1 = load.startMagnitude;
+              const w2 = load.endMagnitude;
+
+              const rectForce = w1 * length;
+              const rectCentroid = load.start + length / 2;
+              totalForce += rectForce;
+              momentAboutA += rectForce * rectCentroid;
+
+              const triForce = ((w2 - w1) * length) / 2;
+              const triCentroid = load.start + (2 / 3) * length;
+              totalForce += triForce;
+              momentAboutA += triForce * triCentroid;
+            }
+          });
+
+          R_B = momentAboutA / L;
+          R_A = totalForce - R_B;
+        } else if (supportType === "cantilever") {
+          // 왼쪽 고정, 오른쪽 자유
+          loads.forEach((load) => {
+            if (load.type === "point") {
+              R_A += load.magnitude;
+              M_A += load.magnitude * load.position; // 모멘트는 시계방향을 양수로 가정
+            } else if (load.type === "uniform") {
+              const length = load.end - load.start;
+              const equivalentForce = load.magnitude * length;
+              const centroidPos = load.start + length / 2;
+              R_A += equivalentForce;
+              M_A += equivalentForce * centroidPos;
+            } else if (load.type === "varying") {
+              const length = load.end - load.start;
+              const w1 = load.startMagnitude;
+              const w2 = load.endMagnitude;
+
+              const rectForce = w1 * length;
+              const rectCentroid = load.start + length / 2;
+              R_A += rectForce;
+              M_A += rectForce * rectCentroid;
+
+              const triForce = ((w2 - w1) * length) / 2;
+              const triCentroid = load.start + (2 / 3) * length;
+              R_A += triForce;
+              M_A += triForce * triCentroid;
+            }
+          });
+          M_A = -M_A; // 고정단 모멘트는 하중에 의해 발생하는 모멘트와 반대 방향 (반시계방향을 양수로)
+          R_B = 0; // 자유단에는 반력 없음
+        } else if (supportType === "fixedFixed") {
+          // 양단 고정 보는 정정 구조물이 아니므로, 고정단 모멘트 및 반력 공식 사용
+          let totalRA = 0;
+          let totalRB = 0;
+          let totalMA_fem = 0; // Fixed-End Moment at A
+          let totalMB_fem = 0; // Fixed-End Moment at B
+
+          loads.forEach((load) => {
+            if (load.type === "point") {
+              const a = load.position;
+              const b = L - a;
+              totalMA_fem += (-load.magnitude * a * b * b) / (L * L);
+              totalMB_fem += (load.magnitude * a * a * b) / (L * L);
+              totalRA += (load.magnitude * (b * b * (L + 2 * a))) / (L * L * L);
+              totalRB += (load.magnitude * (a * a * (L + 2 * b))) / (L * L * L);
+            } else if (load.type === "uniform") {
+              // For simplicity, fixed-end moments are exact for full span UDL.
+              // For partial UDL, these formulas are more complex and require superposition.
+              // Here, we approximate partial UDLs by treating them as if they were on a simply supported beam for FEM calculation,
+              // which will lead to inaccuracies for fixed-fixed partial UDLs.
+              if (load.start <= 0.001 && load.end >= L - 0.001) {
+                // Approximately full span
+                totalMA_fem += (-load.magnitude * L * L) / 12;
+                totalMB_fem += (load.magnitude * L * L) / 12;
+                totalRA += (load.magnitude * L) / 2;
+                totalRB += (load.magnitude * L) / 2;
+              } else {
+                // Fallback for partial uniform load on fixed-fixed.
+                // This is a simplification and will not yield exact fixed-end moments/reactions.
+                // A more robust solution would involve advanced structural mechanics.
+                console.warn(
+                  `Fixed-Fixed: Partial uniform load (start: ${load.start}, end: ${load.end}) is approximated. Exact fixed-end moments for partial loads are more complex.`
+                );
+                const length = load.end - load.start;
+                const equivalentForce = load.magnitude * length;
+                const centroidPos = load.start + length / 2;
+                const R_B_temp = (equivalentForce * centroidPos) / L;
+                const R_A_temp = equivalentForce - R_B_temp;
+                totalRA += R_A_temp;
+                totalRB += R_B_temp;
+              }
+            } else if (load.type === "varying") {
+              // For simplicity, fixed-end moments are exact for full span varying load.
+              // Partial varying loads are even more complex.
+              if (load.start <= 0.001 && load.end >= L - 0.001) {
+                // Approximately full span
+                const w1 = load.startMagnitude;
+                const w2 = load.endMagnitude;
+
+                // Uniform part
+                totalMA_fem += (-w1 * L * L) / 12;
+                totalMB_fem += (w1 * L * L) / 12;
+                totalRA += (w1 * L) / 2;
+                totalRB += (w1 * L) / 2;
+
+                // Triangular part (from 0 at start to (w2-w1) at end)
+                const deltaW = w2 - w1;
+                if (deltaW > 0) {
+                  // Increasing load
+                  totalMA_fem += (-deltaW * L * L) / 30;
+                  totalMB_fem += (deltaW * L * L) / 20;
+                  totalRA += deltaW * L * (3 / 20);
+                  totalRB += deltaW * L * (7 / 20);
+                } else if (deltaW < 0) {
+                  // Decreasing load (0 at end to -(w1-w2) at start)
+                  const absDeltaW = Math.abs(deltaW);
+                  totalMA_fem += (absDeltaW * L * L) / 20; // Flipped
+                  totalMB_fem += (-absDeltaW * L * L) / 30; // Flipped
+                  totalRA += absDeltaW * L * (7 / 20); // Flipped
+                  totalRB += absDeltaW * L * (3 / 20); // Flipped
+                }
+              } else {
+                // Fallback for partial varying load on fixed-fixed.
+                console.warn(
+                  `Fixed-Fixed: Partial varying load (start: ${load.start}, end: ${load.end}) is approximated. Exact fixed-end moments for partial loads are highly complex.`
+                );
+                const length = load.end - load.start;
+                const w1 = load.startMagnitude;
+                const w2 = load.endMagnitude;
+                const rectForce = w1 * length;
+                const triForce = ((w2 - w1) * length) / 2;
+                const equivalentForce = rectForce + triForce;
+                const rectCentroid = load.start + length / 2;
+                const triCentroid = load.start + (2 / 3) * length;
+                const momentAboutA_temp =
+                  rectForce * rectCentroid + triForce * triCentroid;
+                const R_B_temp = momentAboutA_temp / L;
+                const R_A_temp = equivalentForce - R_B_temp;
+                totalRA += R_A_temp;
+                totalRB += R_B_temp;
+              }
+            }
+          });
+
+          R_A = totalRA;
+          R_B = totalRB;
+          M_A = totalMA_fem; // Fixed-end moment at A
+          M_B = totalMB_fem; // Fixed-end moment at B
+        }
+
+        return { R_A, R_B, M_A, M_B };
+      }
+
+      /**
+       * 전단력 및 굽힘 모멘트 값을 계산하는 함수
+       * @param {number} L - 보의 길이
+       * @param {Array<Object>} loads - 하중 배열
+       * @param {Object} reactions - 반력 { R_A, R_B, M_A, M_B }
+       * @param {string} supportType - 지지 조건
+       * @param {number} numPoints - 계산할 지점의 개수
+       * @returns {Object} - { shearForces, bendingMoments, positions }
+       */
+      function calculateSFDBMD(
+        L,
+        loads,
+        reactions,
+        supportType,
+        numPoints = 1000
+      ) {
+        const positions = [];
+        const shearForces = [];
+        const bendingMoments = [];
+        const dx = L / (numPoints - 1);
+
+        for (let i = 0; i < numPoints; i++) {
+          const x = i * dx;
+          positions.push(x);
+
+          let V = 0; // 전단력
+          let M = 0; // 굽힘 모멘트
+
+          // 왼쪽 반력 R_A 적용
+          V += reactions.R_A;
+
+          // 초기 모멘트 (고정단 모멘트) 적용
+          M += reactions.M_A;
+
+          // R_A에 의한 모멘트
+          M += reactions.R_A * x;
+
+          // 모든 하중에 대해 계산
+          loads.forEach((load) => {
+            if (load.type === "point") {
+              if (x >= load.position) {
+                V -= load.magnitude;
+                M -= load.magnitude * (x - load.position);
+              }
+            } else if (load.type === "uniform") {
+              if (x > load.start) {
+                const effectiveEnd = Math.min(x, load.end);
+                const length = effectiveEnd - load.start;
+                V -= load.magnitude * length;
+                M -=
+                  load.magnitude *
+                  length *
+                  (x - (load.start + effectiveEnd) / 2);
+              }
+            } else if (load.type === "varying") {
+              if (x > load.start) {
+                const effectiveEnd = Math.min(x, load.end);
+                const currentLength = effectiveEnd - load.start;
+                const w1 = load.startMagnitude;
+                const w2 = load.endMagnitude;
+
+                // 현재 x 지점에서의 하중 크기 (선형 보간)
+                const currentW =
+                  w1 + (w2 - w1) * (currentLength / (load.end - load.start));
+
+                // 사각형 부분
+                const rectForce = w1 * currentLength;
+                const rectCentroid = load.start + currentLength / 2;
+                V -= rectForce;
+                M -= rectForce * (x - rectCentroid);
+
+                // 삼각형 부분
+                const triHeight = currentW - w1;
+                const triForce = 0.5 * triHeight * currentLength;
+                const triCentroid = load.start + (2 / 3) * currentLength;
+                V -= triForce;
+                M -= triForce * (x - triCentroid);
+              }
+            }
+          });
+          shearForces.push(V);
+          bendingMoments.push(M);
+        }
+        return { shearForces, bendingMoments, positions };
+      }
+
+      /**
+       * 캔버스에 전단력 선도 또는 굽힘 모멘트 선도를 그리는 함수
+       * @param {CanvasRenderingContext2D} ctx - 캔버스 컨텍스트
+       * @param {HTMLCanvasElement} canvas - 캔버스 요소
+       * @param {Array<number>} values - 그릴 값 배열 (전단력 또는 굽힘 모멘트)
+       * @param {Array<number>} positions - x 위치 배열
+       * @param {number} L - 보의 길이
+       * @param {string} label - Y축 라벨 (예: 'V (kN)', 'M (kN·m)')
+       * @param {Object} [reactions] - 반력 정보 (선도에 표시용, 선택 사항)
+       */
+      function drawDiagram(
+        ctx,
+        canvas,
+        values,
+        positions,
+        L,
+        label,
+        reactions = null
+      ) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // 캔버스 초기화
+
+        const padding = 50;
+        const plotWidth = canvas.width - 2 * padding;
+        const plotHeight = canvas.height - 2 * padding;
+
+        // X축 스케일
+        const xScale = plotWidth / L;
+
+        // Y축 스케일
+        const maxAbsValue = Math.max(...values.map(Math.abs));
+        const yScale = plotHeight / 2 / (maxAbsValue > 0 ? maxAbsValue : 1); // 0으로 나누는 것 방지
+
+        // 원점 (캔버스 중앙)
+        const originX = padding;
+        const originY = canvas.height / 2;
+
+        ctx.save(); // 현재 캔버스 상태 저장
+
+        // 배경 및 그리드
+        ctx.strokeStyle = "#4a5568"; // 그리드 색상
+        ctx.lineWidth = 0.5;
+        // X축 그리드
+        for (let x = 0; x <= L; x += L / 10) {
+          // 10등분 그리드
+          ctx.beginPath();
+          ctx.moveTo(originX + x * xScale, padding);
+          ctx.lineTo(originX + x * xScale, canvas.height - padding);
+          ctx.stroke();
+        }
+        // Y축 그리드 (중앙선 기준)
+        const numYGrids = 4; // 위아래로 각각 4개
+        for (let i = 1; i <= numYGrids; i++) {
+          const yOffset = (plotHeight / 2 / numYGrids) * i;
+          ctx.beginPath(); // 위쪽
+          ctx.moveTo(padding, originY - yOffset);
+          ctx.lineTo(canvas.width - padding, originY - yOffset);
+          ctx.stroke();
+          ctx.beginPath(); // 아래쪽
+          ctx.moveTo(padding, originY + yOffset);
+          ctx.lineTo(canvas.width - padding, originY + yOffset);
+          ctx.stroke();
+        }
+
+        // X축 (보) 그리기
+        ctx.strokeStyle = "#cbd5e0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(originX + plotWidth, originY);
+        ctx.stroke();
+
+        // X축 라벨
+        ctx.fillStyle = "#cbd5e0";
+        ctx.font = "14px Inter";
+        ctx.textAlign = "center";
+        ctx.fillText("보의 길이 (m)", canvas.width / 2, canvas.height - 15);
+
+        // Y축 라벨
+        ctx.save();
+        ctx.translate(15, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = "center";
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+
+        // Y축 값 라벨
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          maxAbsValue.toFixed(2),
+          padding - 5,
+          originY - plotHeight / 2
+        );
+        ctx.fillText("0", padding - 5, originY);
+        ctx.fillText(
+          (-maxAbsValue).toFixed(2),
+          padding - 5,
+          originY + plotHeight / 2
+        );
+
+        // 선도 그리기
+        ctx.strokeStyle = "#63b3ed"; // 선도 색상 (파란색)
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(
+          originX + positions[0] * xScale,
+          originY - values[0] * yScale
+        );
+        for (let i = 1; i < positions.length; i++) {
+          ctx.lineTo(
+            originX + positions[i] * xScale,
+            originY - values[i] * yScale
+          );
+        }
+        ctx.stroke();
+
+        // 주요 값 표시 (시작, 끝, 최대/최소)
+        ctx.fillStyle = "#e2e8f0"; // 텍스트 색상
+        ctx.font = "12px Inter";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+
+        // 시작점 값
+        ctx.fillText(
+          values[0].toFixed(2),
+          originX + positions[0] * xScale,
+          originY - values[0] * yScale - 5
+        );
+        // 끝점 값
+        ctx.fillText(
+          values[values.length - 1].toFixed(2),
+          originX + positions[positions.length - 1] * xScale,
+          originY - values[values.length - 1] * yScale - 5
+        );
+
+        // 최대/최소 값 찾기 및 표시
+        let maxVal = -Infinity;
+        let minVal = Infinity;
+        let maxIdx = -1;
+        let minIdx = -1;
+
+        for (let i = 0; i < values.length; i++) {
+          if (values[i] > maxVal) {
+            maxVal = values[i];
+            maxIdx = i;
+          }
+          if (values[i] < minVal) {
+            minVal = values[i];
+            minIdx = i;
+          }
+        }
+
+        // 최대값 표시 (0이 아니거나, 0이지만 다른 값들이 모두 0인 경우가 아닐 때)
+        if (
+          maxVal !== 0 ||
+          (maxVal === 0 && minVal === 0 && values.some((v) => v !== 0))
+        ) {
+          ctx.fillText(
+            `Max: ${maxVal.toFixed(2)}`,
+            originX + positions[maxIdx] * xScale,
+            originY - values[maxIdx] * yScale - 5
+          );
+        }
+        // 최소값 표시
+        if (
+          minVal !== 0 ||
+          (maxVal === 0 && minVal === 0 && values.some((v) => v !== 0))
+        ) {
+          ctx.fillText(
+            `Min: ${minVal.toFixed(2)}`,
+            originX + positions[minIdx] * xScale,
+            originY - values[minIdx] * yScale + 15
+          );
+        }
+
+        // 반력 표시 (전단력 선도에만)
+        if (label.includes("V (kN)") && reactions) {
+          ctx.fillStyle = "#a0aec0"; // 회색
+          ctx.font = "12px Inter";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+
+          // R_A
+          ctx.fillText(
+            `RA: ${reactions.R_A.toFixed(2)} kN`,
+            originX,
+            originY + 20
+          );
+
+          // R_B (단순 지지보 또는 양단 고정일 경우)
+          if (
+            supportConditionSelect.value === "simplySupported" ||
+            supportConditionSelect.value === "fixedFixed"
+          ) {
+            ctx.fillText(
+              `RB: ${reactions.R_B.toFixed(2)} kN`,
+              originX + plotWidth,
+              originY + 20
+            );
+          }
+          // M_A (외팔보 또는 양단 고정일 경우)
+          if (
+            supportConditionSelect.value === "cantilever" ||
+            supportConditionSelect.value === "fixedFixed"
+          ) {
+            ctx.fillText(
+              `MA: ${reactions.M_A.toFixed(2)} kN·m`,
+              originX,
+              originY + 35
+            ); // 모멘트 위치 조정
+          }
+          // M_B (양단 고정일 경우)
+          if (supportConditionSelect.value === "fixedFixed") {
+            ctx.fillText(
+              `MB: ${reactions.M_B.toFixed(2)} kN·m`,
+              originX + plotWidth,
+              originY + 35
+            ); // 모멘트 위치 조정
+          }
+        }
+
+        ctx.restore(); // 캔버스 상태 복원
+      }
+
+      /**
+       * 보와 하중, 지지 조건을 시각적으로 그리는 함수
+       */
+      function drawBeamVisual() {
+        const ctx = beamVisualCtx;
+        const canvas = beamVisualCanvas;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const beamLength = parseFloat(beamLengthInput.value);
+        const supportType = supportConditionSelect.value;
+
+        const padding = 30;
+        const beamY = canvas.height / 2;
+        const plotWidth = canvas.width - 2 * padding;
+        const xScale = plotWidth / beamLength;
+
+        // 보 그리기
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(padding, beamY);
+        ctx.lineTo(padding + plotWidth, beamY);
+        ctx.stroke();
+
+        // 지지 조건 그리기
+        ctx.fillStyle = "#a0aec0"; // Support color
+        ctx.strokeStyle = "#a0aec0";
+        ctx.lineWidth = 2;
+
+        if (supportType === "simplySupported") {
+          // Pinned support (left)
+          ctx.beginPath();
+          ctx.moveTo(padding, beamY);
+          ctx.lineTo(padding - 10, beamY + 20);
+          ctx.lineTo(padding + 10, beamY + 20);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath(); // Ground line
+          ctx.moveTo(padding - 15, beamY + 20);
+          ctx.lineTo(padding + 15, beamY + 20);
+          ctx.stroke();
+
+          // Roller support (right)
+          const rollerX = padding + plotWidth;
+          ctx.beginPath();
+          ctx.moveTo(rollerX, beamY);
+          ctx.lineTo(rollerX - 10, beamY + 20);
+          ctx.lineTo(rollerX + 10, beamY + 20);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath(); // Roller circles
+          ctx.arc(rollerX - 5, beamY + 25, 5, 0, Math.PI * 2);
+          ctx.arc(rollerX + 5, beamY + 25, 5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath(); // Ground line
+          ctx.moveTo(rollerX - 15, beamY + 30);
+          ctx.lineTo(rollerX + 15, beamY + 30);
+          ctx.stroke();
+        } else if (
+          supportType === "cantilever" ||
+          supportType === "fixedFixed"
+        ) {
+          // Fixed support (left)
+          ctx.beginPath();
+          ctx.moveTo(padding, beamY - 20);
+          ctx.lineTo(padding, beamY + 20);
+          ctx.stroke();
+          // Hatching
+          for (let i = -20; i <= 20; i += 5) {
+            ctx.beginPath();
+            ctx.moveTo(padding, beamY + i);
+            ctx.lineTo(padding - 10, beamY + i + 10);
+            ctx.stroke();
+          }
+          if (supportType === "fixedFixed") {
+            // Fixed support (right)
+            const fixedRightX = padding + plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(fixedRightX, beamY - 20);
+            ctx.lineTo(fixedRightX, beamY + 20);
+            ctx.stroke();
+            // Hatching
+            for (let i = -20; i <= 20; i += 5) {
+              ctx.beginPath();
+              ctx.moveTo(fixedRightX, beamY + i);
+              ctx.lineTo(fixedRightX + 10, beamY + i + 10);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // 하중 그리기
+        ctx.fillStyle = "#ffffff"; // Load text color (white)
+        ctx.strokeStyle = "#87ceeb"; // Load color (sky blue)
+        ctx.lineWidth = 2;
+        ctx.font = "10px Inter"; // Smaller font for visual labels
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+
+        loads.forEach((load) => {
+          if (load.type === "point") {
+            const x = padding + load.position * xScale;
+            const arrowHeight = 30;
+            ctx.beginPath();
+            ctx.moveTo(x, beamY - arrowHeight);
+            ctx.lineTo(x, beamY);
+            ctx.stroke();
+            // Arrowhead
+            ctx.beginPath();
+            ctx.moveTo(x, beamY);
+            ctx.lineTo(x - 5, beamY - 10);
+            ctx.moveTo(x, beamY);
+            ctx.lineTo(x + 5, beamY - 10);
+            ctx.stroke();
+            ctx.fillText(`${load.magnitude}kN`, x, beamY - arrowHeight - 5); // Label
+          } else if (load.type === "uniform") {
+            const startX = padding + load.start * xScale;
+            const endX = padding + load.end * xScale;
+            const loadHeight = 20;
+            ctx.beginPath();
+            ctx.rect(startX, beamY - loadHeight, endX - startX, loadHeight);
+            ctx.stroke();
+            // Arrows
+            for (let x = startX + 5; x < endX; x += 15) {
+              ctx.beginPath();
+              ctx.moveTo(x, beamY - loadHeight);
+              ctx.lineTo(x, beamY);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(x, beamY);
+              ctx.lineTo(x - 3, beamY - 5);
+              ctx.moveTo(x, beamY);
+              ctx.lineTo(x + 3, beamY - 5);
+              ctx.stroke();
+            }
+            ctx.fillText(
+              `${load.magnitude}kN/m`,
+              (startX + endX) / 2,
+              beamY - loadHeight - 5
+            );
+          } else if (load.type === "varying") {
+            const startX = padding + load.start * xScale;
+            const endX = padding + load.end * xScale;
+            const maxLoadHeight = 30; // Max visual height for varying load
+
+            // Scale magnitudes to visual height
+            // Ensure denominator is not zero
+            const maxMag = Math.max(
+              load.startMagnitude,
+              load.endMagnitude,
+              0.1
+            );
+            const h1 = (load.startMagnitude / maxMag) * maxLoadHeight;
+            const h2 = (load.endMagnitude / maxMag) * maxLoadHeight;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, beamY - h1);
+            ctx.lineTo(endX, beamY - h2);
+            ctx.lineTo(endX, beamY);
+            ctx.lineTo(startX, beamY);
+            ctx.closePath();
+            ctx.stroke(); // Draw trapezoid outline
+
+            // Arrows (simplified, just a few)
+            const numArrows = 5;
+            for (let i = 0; i <= numArrows; i++) {
+              const currentX = startX + (endX - startX) * (i / numArrows);
+              const currentH = h1 + (h2 - h1) * (i / numArrows);
+              ctx.beginPath();
+              ctx.moveTo(currentX, beamY - currentH);
+              ctx.lineTo(currentX, beamY);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(currentX, beamY);
+              ctx.lineTo(currentX - 3, beamY - 5);
+              ctx.moveTo(currentX, beamY);
+              ctx.lineTo(currentX + 3, beamY - 5);
+              ctx.stroke();
+            }
+            ctx.fillText(`${load.startMagnitude}kN/m`, startX, beamY - h1 - 5);
+            ctx.fillText(`${load.endMagnitude}kN/m`, endX, beamY - h2 - 5);
+          }
+        });
+      }
+
+      /**
+       * 계산 및 그리기 프로세스를 시작하는 메인 함수
+       */
+      function calculateAndDraw() {
+        getLoadsData(); // 현재 입력된 하중 데이터 가져오기
+        const beamLength = parseFloat(beamLengthInput.value);
+        const supportType = supportConditionSelect.value;
+
+        if (isNaN(beamLength) || beamLength <= 0) {
+          console.error("보의 길이를 유효한 숫자로 입력해주세요.");
+          return;
+        }
+
+        // 입력 조건 시각화
+        drawBeamVisual();
+
+        // 반력 계산
+        const reactions = calculateReactions(beamLength, loads, supportType);
+
+        // SFD 및 BMD 값 계산
+        const { shearForces, bendingMoments, positions } = calculateSFDBMD(
+          beamLength,
+          loads,
+          reactions,
+          supportType
+        );
+
+        // SFD 그리기
+        drawDiagram(
+          sfdCtx,
+          sfdCanvas,
+          shearForces,
+          positions,
+          beamLength,
+          "전단력 V (kN)",
+          reactions
+        );
+
+        // BMD 그리기
+        drawDiagram(
+          bmdCtx,
+          bmdCanvas,
+          bendingMoments,
+          positions,
+          beamLength,
+          "굽힘 모멘트 M (kN·m)"
+        );
+      }
+
+      // 초기 하중 추가 (예시) 및 실시간 업데이트를 위해 oninput 이벤트 추가
+      addLoad("point");
+      addLoad("uniform");
+      addLoad("varying");
+    </script>
+  </body>
+</html>
