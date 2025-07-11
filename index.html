@@ -3,524 +3,448 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>철근 콘크리트 기둥 PM 상관도 분석기</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>KDS 철골부재 단면 검토기</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+        :root {
+            --bg-color: #1E1E1E;
+            --text-color: #E0E0E0;
+            --primary-color: #007BFF;
+            --primary-hover-color: #0056b3;
+            --panel-bg-color: #2a2a2e;
+            --border-color: #444;
+            --ok-color: #28a745;
+            --ng-color: #dc3545;
+            --label-color: #aaa;
+        }
         body {
-            font-family: 'Noto Sans KR', sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
         }
-        /* 스크롤바 스타일링 (다크모드) */
-        ::-webkit-scrollbar {
-            width: 8px;
+        #root {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        ::-webkit-scrollbar-track {
-            background: #2d3748;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
-        }
-        .input-group {
+        .app-container {
             display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--panel-bg-color);
+            border-radius: 8px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+        }
+        .input-panel {
+            flex: 1;
+            min-width: 320px;
+        }
+        .result-panel {
+            flex: 2;
+            min-width: 480px;
+        }
+        h1, h2, h3 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            font-weight: 600;
+        }
+        h1 { color: var(--primary-color); }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            color: var(--label-color);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .final-verdict {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .final-verdict.ok {
+            background-color: rgba(40, 167, 69, 0.1);
+            border: 1px solid var(--ok-color);
+        }
+        .final-verdict.ng {
+            background-color: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--ng-color);
+        }
+        .final-verdict .status {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .final-verdict .ratio {
+            font-size: 16px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
         }
-        .input-group input {
-            flex-grow: 1;
+        .result-item:last-child {
+            border-bottom: none;
         }
-        .input-group span {
-            white-space: nowrap;
+        .result-label {
+            color: var(--label-color);
+        }
+        .result-value {
+            font-weight: 600;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .status-ok {
+            background-color: var(--ok-color);
+            color: white;
+        }
+        .status-ng {
+            background-color: var(--ng-color);
+            color: white;
+        }
+        .unit {
+            font-size: 12px;
+            color: var(--label-color);
+            margin-left: 5px;
+        }
+        @media (max-width: 800px) {
+            .app-container {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200">
+<body>
 
-    <div class="container mx-auto p-4 md:p-8">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white">철근 콘크리트 기둥 PM 상관도 분석기</h1>
-            <p class="text-gray-400 mt-2">KCI 기준에 따른 공칭강도 및 설계강도 곡선을 생성합니다.</p>
-        </header>
+<div id="root"></div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- 입력 폼 및 단면 시각화 -->
-            <div class="lg:col-span-1 bg-gray-800 p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 border-b-2 border-indigo-500 pb-2">입력 변수</h2>
-                
-                <form id="pm-form" class="space-y-4">
-                    <!-- 재료 강도 -->
-                    <div>
-                        <h3 class="text-lg font-medium text-indigo-400 mb-2">재료 강도</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="fck" class="block text-sm font-medium text-gray-300 mb-1">fck (MPa)</label>
-                                <input type="number" id="fck" value="24" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label for="fy" class="block text-sm font-medium text-gray-300 mb-1">fy (MPa)</label>
-                                <input type="number" id="fy" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-                        </div>
+<script type="text/babel">
+
+const App = () => {
+    // ----------------------------------
+    // 1. 상태 관리 (State Management)
+    // ----------------------------------
+    const [steelGrade, setSteelGrade] = React.useState('SS275');
+    const [sectionType, setSectionType] = React.useState('H');
+    
+    // H-Beam & Box Dimensions
+    const [H, setH] = React.useState(400); // Height
+    const [B, setB] = React.useState(200); // Width
+    const [tw, setTw] = React.useState(8);  // Web thickness
+    const [tf, setTf] = React.useState(13); // Flange thickness
+    const [t, setT] = React.useState(12); // Thickness for Box
+
+    // Design Variables
+    const [L, setL] = React.useState(6000); // Length (mm)
+    const [Kx, setKx] = React.useState(1.0);
+    const [Ky, setKy] = React.useState(1.0);
+    const [Lb, setLb] = React.useState(3000);
+
+    // Required Strengths (Loads)
+    const [Pu, setPu] = React.useState(500); // 소요압축력 (kN)
+    const [Mux, setMux] = React.useState(150); // 소요휨모멘트 x축 (kN·m)
+    const [Muy, setMuy] = React.useState(0);   // 소요휨모멘트 y축 (kN·m)
+    const [Vu, setVu] = React.useState(200); // 소요전단력 (kN)
+
+    // ----------------------------------
+    // 2. 계산 로직 (Calculation Logic)
+    // ----------------------------------
+    const results = React.useMemo(() => {
+        // --- 재료 특성 (Material Properties) ---
+        const steelProps = {
+            'SS275': { Fy: 275, Fu: 410 },
+            'SM275': { Fy: 275, Fu: 410 },
+            'SM355': { Fy: 355, Fu: 490 },
+            'SHN275': { Fy: 275, Fu: 410 },
+        };
+        const { Fy, Fu } = steelProps[steelGrade];
+        const E = 205000; // 탄성계수 (MPa)
+        const G = 79000; // 전단탄성계수 (MPa)
+
+        // --- 단면 성능 (Section Properties) ---
+        let Ag=0, Ix=0, Iy=0, Zx=0, Zy=0, rx=0, ry=0, Aw=0, Cw=0, J=0, Sx=0, Sy=0, h=0;
+        if (sectionType === 'H') {
+            h = H - 2 * tf;
+            Ag = 2 * B * tf + h * tw;
+            Ix = (B * Math.pow(H, 3) / 12) - ((B - tw) * Math.pow(h, 3) / 12);
+            Iy = (2 * tf * Math.pow(B, 3) / 12) + (h * Math.pow(tw, 3) / 12);
+            Zx = (B * Math.pow(H, 2) / 4) - ((B - tw) * Math.pow(h, 2) / 4);
+            Zy = (Math.pow(B, 2) * tf / 2) + (h * Math.pow(tw, 2) / 4);
+            rx = Math.sqrt(Ix / Ag);
+            ry = Math.sqrt(Iy / Ag);
+            Aw = H * tw; // 근사값
+            Sx = Ix / (H/2);
+            Sy = Iy / (B/2);
+            J = (2 * B * Math.pow(tf, 3) + h * Math.pow(tw, 3)) / 3;
+            Cw = (Iy * Math.pow(h, 2)) / 4;
+        } else { // BOX
+            h = H - 2 * t;
+            const b = B - 2 * t;
+            Ag = B * H - b * h;
+            Ix = (B * Math.pow(H, 3) - b * Math.pow(h, 3)) / 12;
+            Iy = (H * Math.pow(B, 3) - h * Math.pow(b, 3)) / 12;
+            Zx = (B * Math.pow(H, 2) - b * Math.pow(h, 2)) / 4;
+            Zy = (H * Math.pow(B, 2) - h * Math.pow(b, 2)) / 4;
+            rx = Math.sqrt(Ix / Ag);
+            ry = Math.sqrt(Iy / Ag);
+            Aw = 2 * H * t; // 근사값
+            Sx = Ix / (H/2);
+            Sy = Iy / (B/2);
+        }
+
+        // --- KDS 14 31 10 기준 검토 ---
+        
+        // 1. 판폭두께비 검토 (Section Classification)
+        const lambda_f = (B / 2) / tf;
+        const lambda_w = h / tw;
+        const lambda_p_f = 0.38 * Math.sqrt(E / Fy);
+        const lambda_r_f = 1.0 * Math.sqrt(E / Fy);
+        const lambda_p_w = 3.76 * Math.sqrt(E / Fy);
+        const lambda_r_w = 5.70 * Math.sqrt(E / Fy);
+        let classification_f = (lambda_f <= lambda_p_f) ? '조밀' : (lambda_f <= lambda_r_f) ? '비조밀' : '세장';
+        let classification_w = (lambda_w <= lambda_p_w) ? '조밀' : (lambda_w <= lambda_r_w) ? '비조밀' : '세장';
+        let sectionClass = '조밀';
+        if (classification_f === '세장' || classification_w === '세장') sectionClass = '세장';
+        else if (classification_f === '비조밀' || classification_w === '비조밀') sectionClass = '비조밀';
+
+
+        // 2. 압축강도 (Axial Compression Strength) - 휨좌굴 고려
+        const phi_c = 0.90;
+        const Lcx = Kx * L;
+        const Lcy = Ky * L;
+        const Fex = (Math.pow(Math.PI, 2) * E) / Math.pow(Lcx / rx, 2);
+        const Fey = (Math.pow(Math.PI, 2) * E) / Math.pow(Lcy / ry, 2);
+        const Fe = Math.min(Fex, Fey);
+        const Fcr_ratio = Fy / Fe;
+        let Fcr;
+        if (Fcr_ratio <= 2.25) {
+            Fcr = Math.pow(0.658, Fcr_ratio) * Fy;
+        } else {
+            Fcr = 0.877 * Fe;
+        }
+        const Pn = Fcr * Ag; // 공칭압축강도 (N)
+        const phi_Pn = phi_c * Pn / 1000; // 설계압축강도 (kN)
+        const axialRatio = Pu > 0 ? Pu / phi_Pn : 0;
+
+        // 3. 휨강도 (Flexural Strength) - 횡좌굴(LTB) 고려 (x축)
+        const phi_b = 0.90;
+        const Cb = 1.0; // 보수적 가정
+        const Lp = 1.76 * ry * Math.sqrt(E / Fy);
+        const rts = Math.sqrt(Math.sqrt(Iy * Cw) / Sx);
+        const Lr_term1 = 1.95 * rts * (E / (0.7 * Fy));
+        const Lr_term2 = Math.sqrt(Math.pow(J*Sx/(2*Cw), 2) + Math.pow(6.76 * (0.7*Fy/E),2));
+        const Lr = Lr_term1 * Math.sqrt(J/(Sx*h) + Lr_term2);
+        const Mp = Fy * Zx; // 소성모멘트 (N·mm)
+
+        let Mn_x;
+        if (Lb <= Lp) {
+            Mn_x = Mp;
+        } else if (Lb > Lp && Lb <= Lr) {
+            Mn_x = Cb * (Mp - (Mp - 0.7 * Fy * Sx) * (Lb - Lp) / (Lr - Lp));
+            Mn_x = Math.min(Mn_x, Mp);
+        } else {
+            const Fcr_ltb = (Cb * Math.pow(Math.PI, 2) * E / Math.pow(Lb / rts, 2)) * Math.sqrt(1 + 0.078 * (J / (Sx * h)) * Math.pow(Lb / rts, 2));
+            Mn_x = Fcr_ltb * Sx;
+            Mn_x = Math.min(Mn_x, Mp);
+        }
+        const phi_Mn_x = phi_b * Mn_x / 1e6; // 설계휨강도 (kN·m)
+        const flexureRatioX = Mux > 0 ? Mux / phi_Mn_x : 0;
+        
+        // y축 휨강도는 LTB 영향 안받음 (조밀단면 가정)
+        const Mn_y = Math.min(Fy * Zy, 1.6 * Fy * Sy); // 공칭휨강도 (N·mm)
+        const phi_Mn_y = phi_b * Mn_y / 1e6;
+        const flexureRatioY = Muy > 0 ? Muy / phi_Mn_y : 0;
+        const flexureRatio = Math.max(flexureRatioX, flexureRatioY);
+        
+
+        // 4. 전단강도 (Shear Strength)
+        const phi_v = 0.9;
+        const kv = 5.0; // 보강재 없는 웨브
+        const h_tw_ratio = h / tw;
+        let Cv = 1.0;
+        if (h_tw_ratio > 2.24 * Math.sqrt(E*kv/Fy)){
+             Cv = ( (2.24 * Math.sqrt(E*kv/Fy)) / h_tw_ratio )**2;
+        }
+        const Vn = 0.6 * Fy * Aw * Cv; // 공칭전단강도 (N)
+        const phi_Vn = phi_v * Vn / 1000; // 설계전단강도 (kN)
+        const shearRatio = Vu > 0 ? Vu / phi_Vn : 0;
+
+        // 5. 조합력 검토 (Combined Forces)
+        const P_ratio = Pu / phi_Pn;
+        let combinedRatio = 0;
+        if (Pu > 0 || Mux > 0 || Muy > 0) {
+            if (P_ratio >= 0.2) {
+                combinedRatio = P_ratio + (8/9) * ( (Mux / phi_Mn_x) + (Muy / phi_Mn_y) );
+            } else {
+                combinedRatio = P_ratio / 2 + ( (Mux / phi_Mn_x) + (Muy / phi_Mn_y) );
+            }
+        }
+        
+        const governingRatio = Math.max(axialRatio, flexureRatio, shearRatio, combinedRatio);
+
+        return {
+            Fy, Fu, Ag, Ix, Iy, Zx, Zy, rx, ry, sectionClass,
+            phi_Pn, axialRatio,
+            phi_Mn_x, phi_Mn_y, flexureRatio,
+            phi_Vn, shearRatio,
+            combinedRatio,
+            governingRatio
+        };
+
+    }, [steelGrade, sectionType, H, B, tw, tf, t, L, Kx, Ky, Lb, Pu, Mux, Muy, Vu]);
+
+    const isOk = results.governingRatio <= 1.0;
+
+    return (
+        <div>
+            <h1>KDS 철골부재 단면 검토기 🏗️</h1>
+            <div className="app-container">
+                <div className="panel input-panel">
+                    <h2>입력 패널</h2>
+                    <div className="form-group">
+                        <label>강재 (Steel Grade)</label>
+                        <select value={steelGrade} onChange={e => setSteelGrade(e.target.value)}>
+                            <option>SS275</option>
+                            <option>SM275</option>
+                            <option>SM355</option>
+                            <option>SHN275</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>단면 (Section Type)</label>
+                        <select value={sectionType} onChange={e => setSectionType(e.target.value)}>
+                            <option value="H">H-형강</option>
+                            <option value="BOX">각형강관</option>
+                        </select>
                     </div>
 
-                    <!-- 단면 정보 -->
-                    <div>
-                        <h3 class="text-lg font-medium text-indigo-400 mt-4 mb-2">단면 정보</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="b" class="block text-sm font-medium text-gray-300 mb-1">폭 b (mm)</label>
-                                <input type="number" id="b" value="400" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label for="h" class="block text-sm font-medium text-gray-300 mb-1">깊이 h (mm)</label>
-                                <input type="number" id="h" value="600" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label for="d_prime" class="block text-sm font-medium text-gray-300 mb-1">d' (mm)</label>
-                                <input type="number" id="d_prime" value="60" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
+                    <h3>단면 제원 <span className="unit">(mm)</span></h3>
+                    {sectionType === 'H' ? (
+                        <div className="form-group input-grid">
+                            <div><label>높이 (H)</label><input type="number" value={H} onChange={e => setH(Number(e.target.value))} /></div>
+                            <div><label>폭 (B)</label><input type="number" value={B} onChange={e => setB(Number(e.target.value))} /></div>
+                            <div><label>웨브두께 (t_w)</label><input type="number" value={tw} onChange={e => setTw(Number(e.target.value))} /></div>
+                            <div><label>플랜지두께 (t_f)</label><input type="number" value={tf} onChange={e => setTf(Number(e.target.value))} /></div>
                         </div>
-                    </div>
-
-                    <!-- 철근 정보 -->
-                    <div>
-                        <h3 class="text-lg font-medium text-indigo-400 mt-4 mb-2">철근 정보</h3>
-                        <!-- 압축측 철근 -->
-                        <div class="bg-gray-700 p-3 rounded-lg mb-3">
-                            <label class="block text-sm font-medium text-gray-300 mb-2">압축측 철근 (A's)</label>
-                            <div class="input-group">
-                                <input type="number" id="as_prime_num" value="3" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="개수">
-                                <span>- D</span>
-                                <input type="number" id="as_prime_dia" value="22" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="직경">
-                            </div>
+                    ) : (
+                         <div className="form-group input-grid">
+                            <div><label>높이 (H)</label><input type="number" value={H} onChange={e => setH(Number(e.target.value))} /></div>
+                            <div><label>폭 (B)</label><input type="number" value={B} onChange={e => setB(Number(e.target.value))} /></div>
+                            <div><label>두께 (t)</label><input type="number" value={t} onChange={e => setT(Number(e.target.value))} /></div>
                         </div>
-                        <!-- 인장측 철근 -->
-                        <div class="bg-gray-700 p-3 rounded-lg">
-                            <label class="block text-sm font-medium text-gray-300 mb-2">인장측 철근 (As)</label>
-                            <div class="input-group">
-                                <input type="number" id="as_num" value="3" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="개수">
-                                <span>- D</span>
-                                <input type="number" id="as_dia" value="22" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="직경">
-                            </div>
-                        </div>
-                    </div>
+                    )}
                     
-                    <button type="submit" id="draw-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500 transition-colors duration-300 mt-6">
-                        PM 상관도 그리기
-                    </button>
-                </form>
-
-                <div id="error-message" class="mt-4 text-red-400 font-medium"></div>
-
-                <!-- 단면 시각화 -->
-                <div class="mt-8">
-                    <h3 class="text-lg font-medium text-indigo-400 mb-2">단면 시각화</h3>
-                    <div class="bg-gray-700 p-4 rounded-lg aspect-w-1 aspect-h-1">
-                         <canvas id="section-canvas"></canvas>
+                    <h3>설계 변수</h3>
+                     <div className="form-group input-grid">
+                        <div><label>부재길이 L <span className="unit">(mm)</span></label><input type="number" value={L} onChange={e => setL(Number(e.target.value))} /></div>
+                        <div><label>횡비지지길이 Lb <span className="unit">(mm)</span></label><input type="number" value={Lb} onChange={e => setLb(Number(e.target.value))} /></div>
+                        <div><label>유효좌굴길이계수 Kx</label><input type="number" step="0.1" value={Kx} onChange={e => setKx(Number(e.target.value))} /></div>
+                        <div><label>유효좌굴길이계수 Ky</label><input type="number" step="0.1" value={Ky} onChange={e => setKy(Number(e.target.value))} /></div>
                     </div>
-                </div>
-            </div>
 
-            <!-- PM 상관도 그래프 -->
-            <div class="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-lg">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-semibold">P-M 상관도</h2>
-                    <div class="flex space-x-4 text-sm">
-                        <div class="flex items-center">
-                            <div class="w-4 h-4 bg-cyan-400 rounded-full mr-2"></div>
-                            <span>공칭 강도 (Pn, Mn)</span>
-                        </div>
-                        <div class="flex items-center">
-                            <div class="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
-                            <span>설계 강도 (&phi;Pn, &phi;Mn)</span>
+                    <h3>소요 강도</h3>
+                    <div className="form-group input-grid">
+                        <div><label>축력 Pu <span className="unit">(kN)</span></label><input type="number" value={Pu} onChange={e => setPu(Number(e.target.value))} /></div>
+                        <div><label>전단력 Vu <span className="unit">(kN)</span></label><input type="number" value={Vu} onChange={e => setVu(Number(e.target.value))} /></div>
+                        <div><label>휨모멘트 Mux <span className="unit">(kN·m)</span></label><input type="number" value={Mux} onChange={e => setMux(Number(e.target.value))} /></div>
+                        <div><label>휨모멘트 Muy <span className="unit">(kN·m)</span></label><input type="number" value={Muy} onChange={e => setMuy(Number(e.target.value))} /></div>
+                    </div>
+
+                </div>
+
+                <div className="panel result-panel">
+                    <h2>결과 패널</h2>
+                    <div className={`final-verdict ${isOk ? 'ok' : 'ng'}`}>
+                        <div className="status">{isOk ? '✅ 구조적으로 안전합니다 (OK)' : '❌ 구조적으로 위험합니다 (N.G.)'}</div>
+                        <div className="ratio">Governing Ratio = {results.governingRatio.toFixed(3)}</div>
+                    </div>
+
+                    <h3>단면 검토 결과</h3>
+                    <div className="result-item">
+                        <span className="result-label">단면 분류</span>
+                        <span className="result-value">{results.sectionClass}</span>
+                    </div>
+                     <div className="result-item">
+                        <span className="result-label">조합력 검토 (Combined)</span>
+                        <div>
+                            <span className={`status-badge ${results.combinedRatio <= 1.0 ? 'status-ok' : 'status-ng'}`}>{results.combinedRatio.toFixed(3)}</span>
                         </div>
                     </div>
-                </div>
-                <div class="w-full h-[600px] bg-gray-900 rounded-lg p-2">
-                    <canvas id="pm-canvas"></canvas>
+                    <div className="result-item">
+                        <span className="result-label">축력 검토 (Axial)</span>
+                        <div>
+                            <span className="result-value">{Pu.toFixed(1)} / {results.phi_Pn.toFixed(1)}<span className="unit">kN</span></span>
+                            <span className={`status-badge ${results.axialRatio <= 1.0 ? 'status-ok' : 'status-ng'}`}>{results.axialRatio.toFixed(3)}</span>
+                        </div>
+                    </div>
+                    <div className="result-item">
+                        <span className="result-label">휨모멘트 검토 (Flexure)</span>
+                        <div>
+                           <span className="result-value">{Mux.toFixed(1)} / {results.phi_Mn_x.toFixed(1)}<span className="unit">kN·m</span></span>
+                           <span className={`status-badge ${results.flexureRatio <= 1.0 ? 'status-ok' : 'status-ng'}`}>{results.flexureRatio.toFixed(3)}</span>
+                        </div>
+                    </div>
+                    <div className="result-item">
+                        <span className="result-label">전단력 검토 (Shear)</span>
+                        <div>
+                           <span className="result-value">{Vu.toFixed(1)} / {results.phi_Vn.toFixed(1)}<span className="unit">kN</span></span>
+                           <span className={`status-badge ${results.shearRatio <= 1.0 ? 'status-ok' : 'status-ng'}`}>{results.shearRatio.toFixed(3)}</span>
+                        </div>
+                    </div>
+
+                    <h3 style={{marginTop: '30px'}}>단면 성능</h3>
+                    <div className="result-item"><span className="result-label">항복강도 (Fy)</span><span className="result-value">{results.Fy}<span className="unit">MPa</span></span></div>
+                    <div className="result-item"><span className="result-label">인장강도 (Fu)</span><span className="result-value">{results.Fu}<span className="unit">MPa</span></span></div>
+                    <div className="result-item"><span className="result-label">단면적 (Ag)</span><span className="result-value">{results.Ag.toFixed(1)}<span className="unit">mm²</span></span></div>
+                    <div className="result-item"><span className="result-label">단면2차모멘트 (Ix)</span><span className="result-value">{(results.Ix / 1e4).toFixed(1)}<span className="unit">cm⁴</span></span></div>
+                    <div className="result-item"><span className="result-label">단면2차모멘트 (Iy)</span><span className="result-value">{(results.Iy / 1e4).toFixed(1)}<span className="unit">cm⁴</span></span></div>
+                    <div className="result-item"><span className="result-label">소성단면계수 (Zx)</span><span className="result-value">{(results.Zx / 1e3).toFixed(1)}<span className="unit">cm³</span></span></div>
+                    <div className="result-item"><span className="result-label">소성단면계수 (Zy)</span><span className="result-value">{(results.Zy / 1e3).toFixed(1)}<span className="unit">cm³</span></span></div>
+                    <div className="result-item"><span className="result-label">단면2차반경 (rx)</span><span className="result-value">{results.rx.toFixed(1)}<span className="unit">mm</span></span></div>
+                    <div className="result-item"><span className="result-label">단면2차반경 (ry)</span><span className="result-value">{results.ry.toFixed(1)}<span className="unit">mm</span></span></div>
+
                 </div>
             </div>
         </div>
-    </div>
+    );
+};
 
-    <script>
-        // DOM 요소 가져오기
-        const form = document.getElementById('pm-form');
-        const drawBtn = document.getElementById('draw-btn');
-        const errorMessage = document.getElementById('error-message');
-        const pmCanvas = document.getElementById('pm-canvas');
-        const sectionCanvas = document.getElementById('section-canvas');
-        const pmCtx = pmCanvas.getContext('2d');
-        const sectionCtx = sectionCanvas.getContext('2d');
+ReactDOM.render(<App />, document.getElementById('root'));
 
-        // 상수 정의
-        const Es = 200000; // 철근의 탄성계수 (MPa)
-        const epsilon_cu = 0.003; // 콘크리트의 극한 변형률
+</script>
 
-        // --- 단면 시각화 로직 ---
-        function drawSection() {
-            const inputs = getInputs();
-            if (!inputs) return;
-
-            const { b, h, d_prime, as_prime_num, as_prime_dia, as_num, as_dia } = inputs;
-            const d = h - d_prime; // 유효깊이 d는 h와 d'로부터 계산
-
-            const canvas = sectionCanvas;
-            const ctx = sectionCtx;
-            const parent = canvas.parentElement;
-            
-            // 캔버스 크기를 부모 요소에 맞춤 (반응형)
-            const size = parent.clientWidth;
-            canvas.width = size;
-            canvas.height = size;
-
-            ctx.clearRect(0, 0, size, size);
-            
-            // 그리기 영역 설정
-            const padding = 30;
-            const drawWidth = size - 2 * padding;
-            const drawHeight = size - 2 * padding;
-            
-            const scale = Math.min(drawWidth / b, drawHeight / h);
-            
-            const rectWidth = b * scale;
-            const rectHeight = h * scale;
-            const xOffset = (size - rectWidth) / 2;
-            const yOffset = (size - rectHeight) / 2;
-
-            // 기둥 단면 그리기
-            ctx.strokeStyle = '#9ca3af'; // gray-400
-            ctx.lineWidth = 2;
-            ctx.strokeRect(xOffset, yOffset, rectWidth, rectHeight);
-
-            // 철근 그리기
-            const drawRebar = (num, dia, depth, color) => {
-                if (num > 0 && dia > 0) {
-                    const rebarRadius = (dia / 2) * scale;
-                    const yPos = yOffset + depth * scale;
-                    
-                    if (num === 1) {
-                        ctx.beginPath();
-                        ctx.arc(size / 2, yPos, rebarRadius, 0, 2 * Math.PI);
-                        ctx.fillStyle = color;
-                        ctx.fill();
-                    } else {
-                        const spacing = rectWidth / num;
-                        for (let i = 0; i < num; i++) {
-                            const xPos = xOffset + spacing / 2 + i * spacing;
-                            ctx.beginPath();
-                            ctx.arc(xPos, yPos, rebarRadius, 0, 2 * Math.PI);
-                            ctx.fillStyle = color;
-                            ctx.fill();
-                        }
-                    }
-                }
-            };
-            
-            // 압축 철근
-            drawRebar(as_prime_num, as_prime_dia, d_prime, '#f87171'); // red-400
-            // 인장 철근
-            drawRebar(as_num, as_dia, d, '#60a5fa'); // blue-400
-
-            // 치수선 그리기
-            ctx.fillStyle = '#d1d5db'; // gray-300
-            ctx.font = '12px Noto Sans KR';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            // 폭(b) 치수
-            ctx.fillText(`b = ${b} mm`, size / 2, yOffset - 15);
-            // 깊이(h) 치수
-            ctx.save();
-            ctx.translate(xOffset - 15, size / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText(`h = ${h} mm`, 0, 0);
-            ctx.restore();
-        }
-
-        // --- 입력값 처리 및 유효성 검사 ---
-        function getInputs() {
-            const inputs = {
-                fck: parseFloat(document.getElementById('fck').value),
-                fy: parseFloat(document.getElementById('fy').value),
-                b: parseFloat(document.getElementById('b').value),
-                h: parseFloat(document.getElementById('h').value),
-                d_prime: parseFloat(document.getElementById('d_prime').value),
-                as_prime_num: parseInt(document.getElementById('as_prime_num').value),
-                as_prime_dia: parseFloat(document.getElementById('as_prime_dia').value),
-                as_num: parseInt(document.getElementById('as_num').value),
-                as_dia: parseFloat(document.getElementById('as_dia').value),
-            };
-
-            // 유효성 검사
-            for (const key in inputs) {
-                if (isNaN(inputs[key]) || inputs[key] <= 0) {
-                    errorMessage.textContent = `오류: '${key}'에 유효한 양수 값을 입력하세요.`;
-                    return null;
-                }
-            }
-            
-            // d'과 d의 관계 확인
-            if (inputs.d_prime >= inputs.h / 2) {
-                errorMessage.textContent = "오류: d'은 h/2보다 작아야 합니다.";
-                return null;
-            }
-
-            errorMessage.textContent = ''; // 오류 메시지 초기화
-            return inputs;
-        }
-
-        // 철근 단면적 계산
-        function calculateSteelArea(num, dia) {
-            if (num > 0 && dia > 0) {
-                return num * (Math.PI * Math.pow(dia / 2, 2));
-            }
-            return 0;
-        }
-
-        // --- PM 상관도 계산 로직 ---
-        function calculatePMPoints() {
-            const params = getInputs();
-            if (!params) return null;
-
-            const { fck, fy, b, h, d_prime } = params;
-            const d = h - d_prime;
-            const As_prime = calculateSteelArea(params.as_prime_num, params.as_prime_dia);
-            const As = calculateSteelArea(params.as_num, params.as_dia);
-
-            // beta1 계산 (KCI 2021 기준)
-            let beta1;
-            if (fck <= 28) {
-                beta1 = 0.85;
-            } else if (fck > 56) {
-                beta1 = 0.65;
-            } else {
-                beta1 = 0.85 - 0.05 * (fck - 28) / 7;
-            }
-            
-            const epsilon_y = fy / Es;
-            const points = [];
-
-            // 1. 순수 압축점 (Pure Compression)
-            const Po = 0.85 * fck * (b * h - As - As_prime) + (As + As_prime) * fy;
-            points.push({ c: Infinity, Pn: Po, Mn: 0 });
-
-            // 2. 중립축(c) 변화에 따른 점들 계산
-            // 중립축 깊이 c를 여러 구간으로 나누어 계산
-            const c_steps = [
-                ...Array.from({length: 100}, (_, i) => h * 5 - i * (h*5-d)/100), // 압축 지배
-                ...Array.from({length: 200}, (_, i) => d - i * (d - d_prime)/200), // 전이 구간
-                ...Array.from({length: 100}, (_, i) => d_prime - i * d_prime/100) // 인장 지배
-            ];
-            
-            for (const c of c_steps) {
-                if (c <= 0.001) continue;
-
-                const a = beta1 * c;
-                
-                // 변형률 계산 (Strain Compatibility)
-                const epsilon_s_prime = epsilon_cu * (c - d_prime) / c;
-                const epsilon_s = epsilon_cu * (d - c) / c;
-
-                // 철근 응력 계산
-                let fs_prime = Es * epsilon_s_prime;
-                fs_prime = Math.max(-fy, Math.min(fy, fs_prime));
-
-                let fs = Es * epsilon_s;
-                fs = Math.max(-fy, Math.min(fy, fs));
-                
-                // 힘 계산
-                const Cc = 0.85 * fck * a * b;
-                // 압축철근이 차지하는 콘크리트 면적 보정
-                const Cs = As_prime * (fs_prime - (c > d_prime ? 0.85 * fck : 0));
-                const Ts = As * fs;
-
-                // 공칭 축력 및 모멘트 계산
-                const Pn = Cc + Cs - Ts;
-                // 단면의 중심에 대한 모멘트
-                const Mn = Cc * (h / 2 - a / 2) + Cs * (h / 2 - d_prime) + Ts * (d - h / 2);
-                
-                if (Pn >= 0 && Mn >= 0) {
-                    points.push({ c, Pn, Mn, epsilon_s });
-                }
-            }
-
-            // 3. 순수 인장점 (Pure Tension)
-            const Pt = -(As + As_prime) * fy;
-            points.push({ c: 0, Pn: Pt, Mn: 0 });
-
-            // 강도감소계수(phi) 적용
-            const designPoints = points.map(p => {
-                let phi;
-                const epsilon_t = p.epsilon_s;
-                
-                if (p.Pn < 0) { // 순수 인장
-                    phi = 0.85;
-                } else if (epsilon_t === undefined || epsilon_t <= epsilon_y) { // 압축 지배
-                    phi = 0.65; // 띠철근 기둥 가정
-                } else if (epsilon_t >= 0.005) { // 인장 지배
-                    phi = 0.85;
-                } else { // 전이 구간
-                    phi = 0.65 + 0.20 * (epsilon_t - epsilon_y) / (0.005 - epsilon_y);
-                }
-                
-                return {
-                    Pn: phi * p.Pn,
-                    Mn: phi * p.Mn
-                };
-            });
-
-            // 단위를 kN, kN.m로 변환
-            const nominalPoints = points.map(p => ({ m: p.Mn / 1e6, p: p.Pn / 1e3 }));
-            const phiPoints = designPoints.map(p => ({ m: p.Mn / 1e6, p: p.Pn / 1e3 }));
-            
-            // 축력이 0 이하인 부분은 제외 (일반적인 PM선도 표현)
-            return {
-                nominal: nominalPoints.filter(pt => pt.p >= 0),
-                design: phiPoints.filter(pt => pt.p >= 0)
-            };
-        }
-
-        // --- PM 상관도 그래프 그리기 ---
-        function drawPMDiagram(data) {
-            const { nominal, design } = data;
-            const canvas = pmCanvas;
-            const ctx = pmCtx;
-            
-            const parent = canvas.parentElement;
-            canvas.width = parent.clientWidth;
-            canvas.height = parent.clientHeight;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 최대값 찾기 (스케일링을 위해)
-            const maxM = Math.max(...nominal.map(p => p.m), 0);
-            const maxP = Math.max(...nominal.map(p => p.p), 0);
-            
-            if (maxM === 0 || maxP === 0) return;
-
-            // 여백 및 스케일 설정
-            const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-            const chartWidth = canvas.width - margin.left - margin.right;
-            const chartHeight = canvas.height - margin.top - margin.bottom;
-
-            const xScale = chartWidth / (maxM * 1.1);
-            const yScale = chartHeight / (maxP * 1.1);
-
-            // 좌표 변환 함수
-            const transform = (m, p) => ({
-                x: margin.left + m * xScale,
-                y: canvas.height - margin.bottom - p * yScale
-            });
-
-            // 축 및 그리드 그리기
-            ctx.strokeStyle = '#4a5568'; // gray-600
-            ctx.fillStyle = '#a0aec0'; // gray-400
-            ctx.lineWidth = 1;
-            ctx.font = '12px Noto Sans KR';
-
-            // Y축 (축하중)
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            for (let i = 0; i <= 10; i++) {
-                const pValue = (maxP * 1.1 / 10) * i;
-                const yPos = transform(0, pValue).y;
-                ctx.fillText(pValue.toFixed(0), margin.left - 10, yPos);
-                ctx.beginPath();
-                ctx.moveTo(margin.left, yPos);
-                ctx.lineTo(margin.left + chartWidth, yPos);
-                ctx.stroke();
-            }
-            ctx.save();
-            ctx.translate(margin.left - 60, canvas.height / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.textAlign = 'center';
-            ctx.font = '14px Noto Sans KR';
-            ctx.fillText('축하중 (P, kN)', 0, 0);
-            ctx.restore();
-
-            // X축 (모멘트)
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            for (let i = 0; i <= 10; i++) {
-                const mValue = (maxM * 1.1 / 10) * i;
-                const xPos = transform(mValue, 0).x;
-                ctx.fillText(mValue.toFixed(0), xPos, canvas.height - margin.bottom + 10);
-                ctx.beginPath();
-                ctx.moveTo(xPos, margin.top);
-                ctx.lineTo(xPos, canvas.height - margin.bottom);
-                ctx.stroke();
-            }
-            ctx.fillText('모멘트 (M, kN·m)', canvas.width / 2, canvas.height - margin.bottom + 40);
-
-            // 곡선 그리기 함수
-            const drawCurve = (points, color) => {
-                if (points.length < 2) return;
-                ctx.beginPath();
-                const startPoint = transform(points[0].m, points[0].p);
-                ctx.moveTo(startPoint.x, startPoint.y);
-                points.forEach(point => {
-                    const p = transform(point.m, point.p);
-                    ctx.lineTo(p.x, p.y);
-                });
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            };
-
-            // 공칭 강도 곡선
-            drawCurve(nominal, '#22d3ee'); // cyan-400
-            // 설계 강도 곡선
-            drawCurve(design, '#ef4444'); // red-500
-        }
-
-        // --- 이벤트 리스너 설정 ---
-        function init() {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                drawBtn.disabled = true;
-                drawBtn.textContent = '계산 중...';
-                
-                // 비동기 처리를 위해 setTimeout 사용 (UI 렌더링 보장)
-                setTimeout(() => {
-                    const points = calculatePMPoints();
-                    if (points) {
-                        drawPMDiagram(points);
-                    }
-                    drawBtn.disabled = false;
-                    drawBtn.textContent = 'PM 상관도 그리기';
-                }, 50);
-            });
-            
-            // 입력값 변경 시 단면 실시간 업데이트
-            const inputsForSection = ['b', 'h', 'd_prime', 'as_prime_num', 'as_prime_dia', 'as_num', 'as_dia'];
-            inputsForSection.forEach(id => {
-                document.getElementById(id).addEventListener('input', drawSection);
-            });
-
-            // 창 크기 변경 시 다시 그리기
-            window.addEventListener('resize', () => {
-                drawSection();
-                const points = calculatePMPoints();
-                if (points) {
-                    drawPMDiagram(points);
-                }
-            });
-
-            // 초기 로드 시 그리기
-            drawSection();
-            drawBtn.click();
-        }
-
-        // 애플리케이션 초기화
-        document.addEventListener('DOMContentLoaded', init);
-
-    </script>
 </body>
 </html>
